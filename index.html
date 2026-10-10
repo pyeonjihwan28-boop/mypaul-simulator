@@ -1281,6 +1281,24 @@ html body .efi.mc b{position:static;font:600 11.5px var(--f-num);color:#9d9d9d;t
 html body .efi.mc.bl{animation:efbl 1s steps(2) infinite}@keyframes efbl{50%{opacity:.45}}
 body #mini{transition:transform .25s;transform:translateY(var(--efh,0px))}
 
+/* ---------- v6: GTA 톤 — 차콜 슬랩 · 얇은 선 · 플랫 버튼 (마크 아이콘·슬롯은 그대로) ---------- */
+:root{--panel:rgba(12,13,16,.68);--panel2:rgba(18,19,22,.92);--line:rgba(255,255,255,.13);--gold:#e3b65a;--star:#e8c36a;
+  --n-top:#2a2d33;--n-bot:#24272c;--n-lip:#111216;--q-top:#1b1d22;--q-bot:#17191d;--q-lip:#0b0c0e;
+  --y-top:#eac36b;--y-bot:#dcb258;--y-lip:#8d6a22;--r-top:#e25a5e;--r-bot:#d14b4f;--r-lip:#7c1a1d;
+  --o1:0 1px 2px rgba(0,0,0,.7);--o2:0 1px 2px rgba(0,0,0,.75);--o3:0 2px 3px rgba(0,0,0,.75)}
+html body button{border:1px solid rgba(255,255,255,.14);border-radius:6px;box-shadow:0 1px 0 rgba(0,0,0,.45);text-shadow:0 1px 2px rgba(0,0,0,.6);letter-spacing:-.01em}
+html body button:hover{border-color:rgba(255,255,255,.28);filter:brightness(1.1)}
+html body button:active{transform:translateY(1px);box-shadow:none}
+html body button.pri,html body button.pri:hover,html body .seg button.on,html body .seg2 button.on,html body .stabs button.on,html body .seg4 button.on{color:#1a1405;text-shadow:none;border-color:rgba(227,182,90,.7);box-shadow:0 1px 0 rgba(0,0,0,.45)}
+html body button.danger,html body button.danger:hover,html body #mcard button.warn,html body .mclose{border-color:rgba(255,255,255,.18)!important;box-shadow:0 1px 0 rgba(0,0,0,.45)}
+html body .pn,html body .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 24px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+html body #clock,html body #qtrk,html body #tut,html body #bossbar{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+html body #ct{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+html body #chatlog .cl{background:rgba(12,13,16,.62);border-radius:4px}
+html body #chatin{background:rgba(12,13,16,.9);border:1px solid rgba(255,255,255,.2)}
+html body .coinbar{background:rgba(227,182,90,.08);border:1px solid rgba(227,182,90,.28);border-radius:6px}
+html body .ov{background:rgba(6,7,9,.72)}
+@media (pointer:coarse){html body .pn,html body .card{backdrop-filter:none;-webkit-backdrop-filter:none}}
 </style>
 
 </head><body>
@@ -39412,6 +39430,88 @@ void main() {
     KI,
     es = null,
     pl = null;
+  var gxG = null,
+    gxGrade = class extends Us {
+      constructor() {
+        super();
+        this.mat = new xi({
+          uniforms: {
+            tDiffuse: { value: null },
+            uRes: { value: new ye(1920, 1080) },
+            uTime: { value: 0 },
+            uVig: { value: 0.22 },
+            uGrain: { value: 0.02 },
+            uCA: { value: 0.0016 },
+            uSat: { value: 1.1 },
+            uCon: { value: 1.08 },
+            uSlope: { value: new N(1, 1, 1) },
+            uOffset: { value: new N(0, 0, 0) },
+            uShad: { value: new N(0, 0, 0) },
+            uHi: { value: new N(0, 0, 0) },
+          },
+          vertexShader: Rf,
+          fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uTime, uVig, uGrain, uCA, uSat, uCon; uniform vec3 uSlope, uOffset, uShad, uHi; varying vec2 vUv;
+        float gxHash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+        void main(){
+          vec2 d = vUv - 0.5; float r2 = dot(d, d);
+          vec2 ca = d * uCA * r2 * 2.0;
+          vec3 c;
+          c.r = texture2D(tDiffuse, vUv + ca).r;
+          c.g = texture2D(tDiffuse, vUv).g;
+          c.b = texture2D(tDiffuse, vUv - ca).b;
+          c = max(c * uSlope + uOffset, 0.0);                      /* ASC-CDL 슬로프·오프셋 */
+          float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+          c = mix(vec3(l), c, uSat);                               /* 채도 */
+          c = (c - 0.435) * uCon + 0.435;                          /* 대비 (피벗 0.435) */
+          c += uShad * (1.0 - l) * (1.0 - l) + uHi * l * l;        /* 스플릿 톤: 그림자 틸 · 하이라이트 웜 */
+          float v = smoothstep(0.12, 0.78, r2 * 2.0) * uVig;        /* 비네트 */
+          c *= 1.0 - v;
+          float g = gxHash(floor(vUv * uRes * 0.5) + fract(uTime * 7.31) * 101.0) - 0.5;
+          c += g * uGrain * (1.0 - l);                             /* 필름 그레인 (어두운 곳만) */
+          c = c * 0.985 + 0.015;                                   /* 블랙 플로어 (아이들용, 안 뭉개지게) */
+          gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+        }`,
+        });
+        this.fsq = new hn(this.mat);
+        this.cine = 0;
+      }
+      setSize(e, t) {
+        this.mat.uniforms.uRes.value.set(e, t);
+      }
+      render(e, t, i) {
+        let r = this.mat.uniforms,
+          T = c.tod || {},
+          n = T.night || 0,
+          g = (T.golden || 0) * (1 - n),
+          d = Math.max(0, 1 - n - g),
+          ar = c.arenaOn ? 1 : 0,
+          ci = this.cine,
+          mix3 = (a, b, k) => a[0] * d + b[0] * g + k[0] * n,
+          L = (a, b, k) => [mix3(a, b, k), a[1] * d + b[1] * g + k[1] * n, a[2] * d + b[2] * g + k[2] * n];
+        let sl = L([1.03, 1.0, 0.97], [1.08, 1.0, 0.86], [0.9, 0.95, 1.1]),
+          of = L([-0.01, 0, 0.012], [-0.015, -0.005, 0.02], [0, 0.012, 0.03]),
+          sh = L([0, 0.025, 0.05], [0, 0.02, 0.045], [0, 0.03, 0.06]),
+          hi = L([0.03, 0.015, 0], [0.06, 0.03, 0], [0.05, 0.03, 0]);
+        if (ar) (sl = [1.02, 1, 0.98]), (of = [0, 0, 0]), (sh = [0, 0.01, 0.02]), (hi = [0.04, 0.02, 0]);
+        r.uSlope.value.set(sl[0], sl[1], sl[2]),
+          r.uOffset.value.set(of[0], of[1], of[2]),
+          r.uShad.value.set(sh[0], sh[1], sh[2]),
+          r.uHi.value.set(hi[0], hi[1], hi[2]),
+          (r.uSat.value = ar ? 1.2 : 1.12 * d + 1.18 * g + 0.95 * n),
+          (r.uCon.value = 1.1 * d + 1.14 * g + 1.06 * n),
+          (r.uVig.value = (0.2 + 0.1 * n) * (1 + 0.5 * ci)),
+          (r.uGrain.value = 0.018 + 0.012 * n),
+          (r.uCA.value = 0.0016 * (1 + 4 * Math.min(0.4, (typeof Le < "u" && Le.shake) || 0))),
+          (r.uTime.value = c.uTime || performance.now() / 1e3),
+          kI && ((kI.threshold = 1.25 - 0.75 * n), (kI.strength = 0.2 + 0.26 * n)),
+          (r.tDiffuse.value = i.texture),
+          e.setRenderTarget(this.renderToScreen ? null : t),
+          this.fsq.render(e);
+      }
+      dispose() {
+        this.mat.dispose(), this.fsq.dispose();
+      }
+    };
   function JI() {
     let e = c.Q;
     cr && (cr.passes.forEach((r) => r.dispose && r.dispose()), cr.dispose && cr.dispose(), (cr = null)),
@@ -39470,9 +39570,14 @@ void main() {
         cr.addPass(us);
       } else us = null;
       es && (cr.addPass(new fH(es, ot, e.ssr)), cr.addPass(new mH(es, ot, c, e.rays))),
-        e.bloom && ((kI = new HM(new ye(t, i), 0.28, 0.45, 1.7)), cr.addPass(kI)),
+        e.bloom &&
+          ((kI = new HM(new ye(t, i), 0.22, 0.62, 1.25)),
+          (kI.highPassUniforms.smoothWidth.value = 0.5),
+          cr.addPass(kI)),
         (FI = new nH()),
         cr.addPass(FI),
+        (gxG = new gxGrade()),
+        cr.addPass(gxG),
         es
           ? ((pl = new xH(es, ot)), cr.addPass(pl))
           : e.aa && ((KI = new lH(t * Ur.getPixelRatio(), i * Ur.getPixelRatio())), cr.addPass(KI)),
@@ -53740,8 +53845,9 @@ void main() {`,
     let t = e.target.closest && e.target.closest("[data-tut]");
     t && (t.dataset.tut === "next" ? WD(!0) : XD());
   });
-  var bn = "1791621903933",
-    Km = `마크 블록 도시! 바깥 도시 건물·구조물을 전부 마크 블록(84종 · 단단함·폭발 저항·드롭은 마크 데이터 그대로)으로 새로 지었어요 · 1m 격자 · 폭발은 마크 Explosion 규칙 그대로 블록이 부서지고 1/power 확률로 아이템이 떨어져요 (TNT 블록은 연쇄 폭발) · 부서진 건 다시 안 지어져요(저장)
+  var bn = "1791631891421",
+    Km = `GTA5 × 마인크래프트 비주얼 1차: 시네마틱 색보정(시간대별 웜/틸 스플릿 톤 · 대비 · 비네트 · 필름 그레인 · 색수차) · 블룸을 넓고 부드럽게(밤엔 가로등·간판이 은은히 빛나요) · HUD를 차콜 슬랩 + 플랫 버튼의 GTA 톤으로 (마크 하트·슬롯·아이콘은 그대로)
+마크 블록 도시! 바깥 도시 건물·구조물을 전부 마크 블록(84종 · 단단함·폭발 저항·드롭은 마크 데이터 그대로)으로 새로 지었어요 · 1m 격자 · 폭발은 마크 Explosion 규칙 그대로 블록이 부서지고 1/power 확률로 아이템이 떨어져요 (TNT 블록은 연쇄 폭발) · 부서진 건 다시 안 지어져요(저장)
 GTA식 건물: 경찰서 · 소방서 · 병원 · 군부대 · 교도소 · 은행 · 주유소 · 정비소 · 시청 · 방송국 · 체육관 · 호텔 · 버스 터미널 · 공사장 · 편의점 · 무기 가게 · 이발소 · 옷가게 · 햄버거 · 치킨 · 피자 · 카페 · 약국 · 우체국 · 자동차 대리점 · 택시 · 영화관 — 건물마다 문 앞에 그 직업 NPC (경찰관 · 소방관 · 의사 · 군인 …) + 마크 주민 직업 13
 보스전 시작은 선생님처럼: 끝까지 대화하거나 먼저 때리면 (먼저 쫓아오지 않아요) · 보스 레벨 1~7 · 보스 바에 이름 없이 · 이기면 그 직업다운 마크 아이템
 인벤토리(E)에 모든 아이템: 음식 · 물약 · 상자 · 마크 아이템 · 블록 · 탈것 · 장비 · 왼손 템을 스택으로 · 먹기 · 쓰기 · 팔기 · 타기 · 상점 음식은 사면 가방으로
