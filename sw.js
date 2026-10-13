@@ -1,5 +1,6 @@
 /* 마이폴학교 시뮬레이터 — 와이파이 없이도 실행 (서비스 워커)
    · 게임 화면(index.html)은 인터넷이 되면 늘 새로 받아서 저장해 두고, 안 되면(또는 5초 넘게 느리면) 저장본으로 열어요
+   · 게임 코드(app.js · worker.js)도 인터넷이 되면 새로 받아 저장해 두고, 안 되면 저장본
    · 아이콘 · manifest 는 저장본 먼저
    · 글꼴(Google Fonts)은 한 번 받으면 저장해 두고 써요
    · version.json(업데이트 확인) · sw.js 는 건드리지 않아요 — 늘 인터넷으로 */
@@ -43,6 +44,7 @@ self.addEventListener("fetch", e => {
     const p = u.pathname;
     if (p.endsWith("/version.json") || p.endsWith("/sw.js")) return;
     if (r.mode === "navigate" || p.endsWith("/") || p.endsWith(".html")) { e.respondWith(page(r)); return; }
+    if (p.endsWith("/app.js") || p.endsWith("/worker.js")) { e.respondWith(netFirst(PAGE, r)); return; }
     if (STATIC_FILES.some(f => p.endsWith("/" + f))) { e.respondWith(cacheFirst(STATIC, r)); return; }
     return;
   }
@@ -59,6 +61,12 @@ async function page(r) {
     net.then(res => (res && (res.ok || res.type === "opaqueredirect") ? res : cached)).catch(() => cached),
     new Promise(ok => setTimeout(() => ok(cached), 5000)),
   ]);
+}
+// 게임 코드(app.js · worker.js): 인터넷이 되면 늘 새로 받아 저장해 두고, 안 되면 저장본
+async function netFirst(name, r) {
+  const key = pageKey(r.url), c = await caches.open(name);
+  try { const res = await fetch(r); if (res && res.ok) c.put(key, res.clone()).catch(() => {}); return res; }
+  catch (x) { const hit = await c.match(key); return hit || Response.error(); }
 }
 async function cacheFirst(name, r) {
   const c = await caches.open(name), hit = await c.match(r);
