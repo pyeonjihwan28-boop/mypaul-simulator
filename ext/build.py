@@ -63,8 +63,15 @@ if r.returncode != 0:
     print(r.stderr[:3000]); raise SystemExit("문법 오류")
 os.remove(tmp)
 
+# GitHub 판에만: 설치형 웹앱(와이파이 없이 실행) 머리 태그 — manifest · 아이콘 (sw.js 는 96-offline.js 가 켜요)
+pre = "../" if mode == "beta" else ""
+pwa = (f'<link rel="manifest" href="{pre}manifest.webmanifest">'
+       f'<link rel="icon" type="image/png" sizes="192x192" href="{pre}icon-192.png">'
+       f'<link rel="apple-touch-icon" href="{pre}icon-180.png">\n')
+he0 = out.find("</head>"); assert he0 > 0
+out_gh = out[:he0] + pwa + out[he0:]
 name = os.path.join(ROOT, "build", f"mypaul-{mode}.html")
-open(name, "w", encoding="utf-8").write(out)
+open(name, "w", encoding="utf-8").write(out_gh)
 json.dump({"build": build_id, "notes": notes_txt}, open(os.path.join(ROOT, "build", f"version-{mode}.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 
 # 아티팩트로 올릴 본문: 머리말 주석 + <title>부터 </head> 전까지 + <body> 안쪽
