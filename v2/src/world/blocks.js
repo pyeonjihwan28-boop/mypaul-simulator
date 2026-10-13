@@ -20,7 +20,7 @@ for (const name of [
   'desk', 'lamp_pole', 'sign_mart', 'sign_chicken', 'sign_bakery', 'sign_pharmacy', 'brick_dark', 'roof_red',
   'apt_sign', 'bus_stop', 'traffic_light', 'water_deep', 'wood_dark', 'marble', 'lane_edge', 'hill_grass',
   'planks_line', 'track_line', 'stained', 'locker', 'monitor', 'bed', 'piano', 'whiteboard', 'carpet', 'tile_dark',
-  'orange_wall', 'dorm_wall', 'terrazzo', 'mailbox', 'roof_gray', 'ceil',
+  'orange_wall', 'dorm_wall', 'terrazzo', 'mailbox', 'roof_gray', 'ceil', 'fence_white', 'paint_white', 'paint_red', 'paint_blue', 'paint_yellow', 'court',
 ]) T[name] = _t++;
 export const TILE_COUNT = _t;
 export const ATLAS_COLS = 16;
@@ -157,6 +157,12 @@ def('MAILBOX', '우체통', T.mailbox, { icon: '📮' });
 def('ROOF_GRAY', '회색 옥상', [T.roof_gray, T.roof_gray, T.roof_gray, T.ceil, T.roof_gray, T.roof_gray], { vary: 0.03, icon: '◻️' });
 def('WOOD_FLOOR', '나무 마루', [T.wood_dark, T.wood_dark, T.wood_dark, T.ceil, T.wood_dark, T.wood_dark], { vary: 0.03, icon: '🟫' });
 def('CEILING', '천장 판', T.ceil, { icon: '⬜' });
+def('FENCE_WHITE', '흰 울타리', T.fence_white, { kind: KIND.CUTOUT, icon: '🏳️' });
+def('PAINT_WHITE', '흰 칠', T.paint_white, { icon: '⬜' });
+def('PAINT_RED', '빨간 칠', T.paint_red, { icon: '🟥' });
+def('PAINT_BLUE', '파란 칠', T.paint_blue, { icon: '🟦' });
+def('PAINT_YELLOW', '노란 칠', T.paint_yellow, { icon: '🟨' });
+def('COURT', '코트 바닥', T.court, { vary: 0.02, icon: '🏀' });
 
 export const BLOCKS = defs;
 

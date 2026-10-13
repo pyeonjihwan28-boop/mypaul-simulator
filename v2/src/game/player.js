@@ -10,7 +10,7 @@ export class Player {
     this.scene = scene; this.world = world; this.input = input;
     this.position = new Vector3(spawn.x, spawn.y, spawn.z); // 발 중심
     this.vel = new Vector3(0, 0, 0);
-    this.yaw = Math.PI; // 바라보는 방향(남쪽 = 교문 쪽)
+    this.yaw = 0; // 바라보는 방향(북쪽 = 교문에서 본관 쪽)
     this.onGround = false; this.inCar = false; this.speed = 0; this.t = 0;
     this.moveYaw = 0; // 카메라가 넣어주는 이동 기준 방향
     this.speedMult = 1; // 탈것 · 능력치

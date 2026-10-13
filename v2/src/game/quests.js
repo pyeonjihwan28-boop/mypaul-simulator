@@ -11,7 +11,7 @@ export const QUESTS = [
   { id: 'snack', title: '간식 사 오기', steps: [{ place: 'conv', text: '편의점에서 간식 사기', cost: 3000 }, { place: 'lounge', text: '생활관 휴게실에 갖다 두기' }], reward: 5000 },
   { id: 'mart', title: '마트 장보기', steps: [{ place: 'mart', text: '우리 마트에서 급식 재료 사기', cost: 5000 }, { place: 'cafeteria', text: '식당에 전달하기' }], reward: 8000 },
   { id: 'flag', title: '국기 게양', steps: [{ place: 'podium', text: '조회대 옆 국기 게양하기' }], reward: 1500 },
-  { id: 'mic', title: '노래방 마이크 점검', steps: [{ place: 'karaoke', text: '노래방 마이크 점검하기' }, { place: 'studio', text: '방송실에 결과 알리기' }], reward: 2500 },
+  { id: 'mic', title: '밴드 마이크 점검', steps: [{ place: 'club', text: '동아리실 마이크 점검하기' }, { place: 'board', text: '2층 게시판에 결과 적기' }], reward: 2500 },
   { id: 'hill', title: '뒷산 쓰레기 줍기', steps: [{ place: 'hill', text: '전망대까지 올라가 쓰레기 줍기' }, { place: 'garden', text: '텃밭 옆에서 분리수거' }], reward: 4000, fx: { fitness: 3 } },
   { id: 'flyer', title: '아파트 전단지 돌리기', steps: [{ place: 'aptplay', text: '아파트 놀이터에 전단지 붙이기' }, { place: 'office', text: '교무실에 보고하기' }], reward: 6000 },
   { id: 'bread', title: '빵집 간식 주문', steps: [{ place: 'bakery', text: '빵집에서 빵 20개 주문하기', cost: 4000 }, { place: 'store', text: '매점에 전달하기' }], reward: 7000 },

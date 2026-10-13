@@ -5,7 +5,7 @@ import '@babylonjs/core/Culling/ray.js';
 export class FollowCamera {
   constructor(camera, world, player, input, canvas) {
     this.camera = camera; this.world = world; this.player = player; this.input = input; this.canvas = canvas;
-    this.yaw = Math.PI; this.pitch = 0.32; this.dist = 4.6; this.targetDist = 4.6;
+    this.yaw = 0; this.pitch = 0.32; this.dist = 4.6; this.targetDist = 4.6;
     this.pos = camera.position.clone(); this.target = new Vector3();
     this.car = null; // 타고 있는 차
     this._tmp = new Vector3(); this._dir = new Vector3();

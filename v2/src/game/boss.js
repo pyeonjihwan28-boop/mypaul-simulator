@@ -12,12 +12,13 @@ import { ITEMS } from './items.js';
 const G = WORLD.GROUND;
 // 투사체 종류(전 판 ml 표): s 속도 · n 개수 · r 크기 · d 피해 · sp 회전 · slow 느려짐 · sh 방어막 뚫림
 const KINDS = { word: { s: 11, n: 5, r: 0.9, d: 10, col: '#8ab4ff' }, math: { s: 13, n: 5, r: 0.8, d: 10, col: '#ffd27a' }, pil: { s: 12, n: 4, r: 0.8, d: 10, col: '#c9a0ff' }, clean: { s: 14, n: 4, r: 0.7, d: 11, col: '#7ee0a0' }, a4: { s: 8, n: 7, r: 0.6, d: 8, col: '#ffffff' }, student: { s: 13, n: 3, r: 0.8, d: 14, col: '#ffb347' }, laptop: { s: 14, n: 4, r: 0.7, d: 12, col: '#6fb7ff' }, bolt: { s: 22, n: 3, r: 0.5, d: 9, col: '#fff2a8' }, chalk: { s: 16, n: 3, r: 0.4, d: 10, col: '#ffffff' }, ball: { s: 15, n: 3, r: 0.6, d: 10, col: '#ff6a5a' }, doc: { s: 12, n: 5, r: 0.6, d: 9, col: '#f0e6c8' }, stamp: { s: 15, n: 3, r: 0.6, d: 12, col: '#ff5c5c' }, bible: { s: 12, n: 4, r: 0.6, d: 10, col: '#ffe9a0' }, heart: { s: 9, n: 6, r: 0.6, d: 6, col: '#ff7ab8', charm: true }, bone: { s: 15, n: 3, r: 0.5, d: 10, col: '#f4efe0' }, egg: { s: 13, n: 4, r: 0.45, d: 9, col: '#fff4d6' } };
-const ARENA = { x: 128.5, z: 88.5, r: 26 }; // 운동장 가운데
+const ARENA = { x: 130.5, z: 82, r: 20 }; // 운동장 가운데 (props.field 로 덮어씀)
 const fxm = new Map();
 function mat(scene, hex, alpha = 1) { const k = hex + alpha; if (fxm.has(k)) return fxm.get(k); const m = new StandardMaterial('bm' + k, scene); m.emissiveColor = Color3.FromHexString(hex); m.diffuseColor = Color3.Black(); m.disableLighting = true; m.alpha = alpha; m.backFaceCulling = false; fxm.set(k, m); return m; }
 
 export class Boss {
-  constructor(app) { this.app = app; this.scene = app.scene; this.b = null; this.projs = []; this.marks = []; this.minions = []; this.t = 0; }
+  constructor(app) {
+    if (app.props && app.props.field) { ARENA.x = app.props.field.cx; ARENA.z = app.props.field.cz; ARENA.r = Math.max(12, app.props.field.r); } this.app = app; this.scene = app.scene; this.b = null; this.projs = []; this.marks = []; this.minions = []; this.t = 0; }
   get active() { return !!this.b; }
   // Combat 이 맞힐 대상
   targets() { if (!this.b) return []; const b = this.b; const out = [{ pos: b.pos.clone().addInPlaceFromFloats(0, 1, 0), r: 1.1, hit: (dmg, o) => this.hitBoss(dmg, o) }]; for (const m of this.minions) out.push({ pos: m.pos.clone().addInPlaceFromFloats(0, 0.8, 0), r: 0.7, hit: (dmg) => { m.hp -= dmg; } }); return out; }

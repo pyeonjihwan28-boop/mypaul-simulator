@@ -34,7 +34,7 @@ export const PLACE_GROUPS = {
   dorm: ['dorm', 'myroom', 'lounge', 'dormoffice'],
   myroom: ['myroom'],
   cafeteria: ['cafeteria'],
-  class: ['class'],
+  class: ['class', 'lab'],
   lab: ['lab', 'lab2', 'workshop'],
   study: ['reading', 'chapel', 'dormstudy', 'class', 'club'],
   snack: ['store', 'cafeteria', 'lounge'],

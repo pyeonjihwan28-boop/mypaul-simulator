@@ -258,6 +258,7 @@ class App {
       this.signs.update(night, this.sky.time);
       // 게임
       this.input.update();
+      if (playing && this.devCam && this.devPos) { const c = this.camera; c.position.set(this.devPos[0], this.devPos[1], this.devPos[2]); c.setTarget(new Vector3(this.devTgt[0], this.devTgt[1], this.devTgt[2])); this.player.position.set(this.devTgt[0], this.player.position.y, this.devTgt[2]); }
       if (playing && !this.devCam) {
         if (this.player.inCar) this.car.update(dt, this.input, this.player); else this.player.update(dt);
         this.followCam.update(dt);

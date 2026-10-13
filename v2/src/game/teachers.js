@@ -70,7 +70,7 @@ export class Teachers {
       let ch; if (d.animal) ch = animalMesh(this.scene, d.animal, col); else ch = makeCharacter(this.scene, { skin: '#f1c9a5', hair: '#1a1410', top: '#f4f4f0', bottom: '#1e2a4a', tie: '#1f7a46', skirt: false, ...d.look }, 3, 'tch_' + d.n);
       const tag = nameTag(this.scene, d.n, d.t, col); tag.parent = ch.root; tag.position.y = d.animal ? 1.6 : 2.25;
       for (const m of ch.meshes) app.lighting.addCaster(m);
-      const [hx, hz, hy, r] = d.home;
+      const [hx, hz, hy, r] = (app.props.homes && app.props.homes[d.n]) || d.home;
       const o = { d, ch, tag, pos: new Vector3(hx, hy, hz), home: new Vector3(hx, hy, hz), r, yaw: Math.PI, target: new Vector3(hx, hy, hz), wait: 1 + Math.random() * 3, speed: 0, away: false, hidden: false };
       ch.root.position.copyFrom(o.pos); this.list.push(o);
     }

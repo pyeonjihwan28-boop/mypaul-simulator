@@ -104,7 +104,7 @@ export class Interact {
   // 수업 듣기(퀴즈 3문제) — 교시 끝까지 시간이 감
   classOption(pl) {
     const ev = this.stats.current(this.app.sky.time);
-    const inClass = ev && ev.act === 'class' && pl.key === 'class';
+    const inClass = ev && ev.act === 'class' && (pl.key === 'class' || pl.key === 'lab');
     if (inClass) return { label: `${ev.name} 듣기 (퀴즈 3문제)`, sub: `${hm(ev.t + ev.len)}까지 · 맞히면 성적↑ 용돈↑`, accent: true, run: () => { this.startQuiz(`${pl.name} · ${ev.name}`, ev); return true; } };
     return this.act('자습하기 (1시간)', '성적 +2 · 에너지 −6', { grade: 2, energy: -6, stress: 1 }, 1, { ctx: { studying: true } });
   }
@@ -140,6 +140,7 @@ export class Interact {
       case 'office': o.push(...this.questBoard(), { label: '출석 확인', sub: `지금까지 ${s.attendCount}번 출석 · 결석 ${s.missed}번`, run: () => false }, this.act('선생님께 인사', '스트레스 −2', { stress: -2 }, 0)); break;
       case 'lab': case 'lab2': case 'workshop': {
         const ev = s.current(t), ir = ev && ev.act === 'research';
+        if (pl.key === 'lab' && ev && ev.act === 'class') o.push(this.classOption(pl));
         o.push(this.act(ir ? 'IR 연구하기 (끝까지)' : '연구하기 (1시간)', ir ? `${hm(ev.t + ev.len)}까지 · 성적 +4` : '성적 +3 · 에너지 −8', { grade: ir ? 4 : 3, energy: -8, stress: 3 }, ir ? Math.max(0.5, ev.t + ev.len - t) : 1, { accent: ir, ctx: { studying: true }, msg: '연구했어요' }));
         if (pl.key === 'workshop') o.push(this.buy('3D 프린터로 작품 만들기', 2000, { stress: -8, grade: 1 }, 1, { sub: '철 블록 +20', give: [[B.IRON, 20]] }), this.act('공구 정리 (30분)', '체력 +1', { fitness: 1 }, 0.5));
         else o.push(this.act('선생님과 상담 (30분)', '스트레스 −6 · 성적 +1', { stress: -6, grade: 1 }, 0.5));

@@ -237,6 +237,18 @@ GEN[T.fence] = (t) => {
     t.set(i, [c[0] * (1 + g * 0.4), c[1] * (1 + g * 0.4), c[2] * (1 + g * 0.4)], post ? 0.5 : 0, 0.8, 0);
   });
 };
+GEN[T.fence_white] = (t) => {
+  t.each((u, v, i) => {
+    const post = Math.abs(u - 0.5) < 0.1, rail = Math.abs(v - 0.25) < 0.07 || Math.abs(v - 0.62) < 0.07, pick = Math.abs(((u * 4) % 1) - 0.5) < 0.12 && v > 0.15;
+    t.al[i] = post || rail || pick ? 1 : 0;
+    t.set(i, col(0.93, 0.94, 0.93), post ? 0.4 : 0, 0.5, 0.3);
+  });
+};
+GEN[T.paint_white] = (t) => base(t, col(0.94, 0.94, 0.92), { vary: 0.02, freq: 6, oct: 2, rough: 0.5, hAmp: 0.03, seed: 61 });
+GEN[T.paint_red] = (t) => base(t, col(0.78, 0.2, 0.17), { vary: 0.03, freq: 6, oct: 2, rough: 0.55, hAmp: 0.03, seed: 62 });
+GEN[T.paint_blue] = (t) => base(t, col(0.2, 0.36, 0.65), { vary: 0.03, freq: 6, oct: 2, rough: 0.55, hAmp: 0.03, seed: 63 });
+GEN[T.paint_yellow] = (t) => base(t, col(0.9, 0.72, 0.18), { vary: 0.03, freq: 6, oct: 2, rough: 0.55, hAmp: 0.03, seed: 64 });
+GEN[T.court] = (t) => base(t, col(0.72, 0.71, 0.66), { vary: 0.04, freq: 12, oct: 3, rough: 0.85, hAmp: 0.08, seed: 65 });
 GEN[T.sand] = (t) => base(t, col(0.84, 0.76, 0.55), { vary: 0.08, freq: 24, oct: 3, rough: 0.95, hAmp: 0.15, seed: 30 });
 GEN[T.track] = (t) => base(t, col(0.6, 0.26, 0.2), { vary: 0.1, freq: 32, oct: 2, rough: 0.92, hAmp: 0.12, seed: 31 });
 GEN[T.field_line] = (t) => { GEN[T.grass_top](t); stripeV(t, 0.5, 0.16, col(0.95, 0.95, 0.92), { rough: 0.85, h: 0.05 }); };

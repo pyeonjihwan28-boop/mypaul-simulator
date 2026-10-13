@@ -1,7 +1,7 @@
 // 세계 생성 — 지형 · 도로 → 학교(gen/school) · 도시·공원(gen/city) · 뒷산.
 // 남쪽 = -z, 북쪽 = +z, 동쪽 = +x. 땅 위 첫 공기 칸 y = GROUND(8), 땅 윗면 블록 y = 7.
 // 비율: 블록 1칸 = 1m · 사람 1.8m · 문 2m · 학교 층 4m(천장 3.5m) · 아파트·주택 층 3m(천장 2.5m) · 계단 한 단 0.5m
-import { WORLD, B } from './blocks.js';
+import { WORLD, B, SHAPE } from './blocks.js';
 import { fbmWorld, rng, smooth } from './noise.js';
 import { makeTools, G, TOP, SB, ST } from './gen/util.js';
 import { buildSchool, CAMPUS } from './gen/school.js';
@@ -80,6 +80,8 @@ export function generateWorld(W, onStep) {
 
   step('본관 짓는 중 (흰 외벽 + 초록 띠)');
   buildSchool(W, T, R, props);
+  // 전 판(three.js · 오른손 좌표)과 새 판(Babylon · 왼손 좌표)은 좌우가 반대라서, 교문에서 봤을 때 전 판과 같게 캠퍼스를 좌우로 뒤집어요(x ↔ 256 - x)
+  mirrorX(W, height, props);
   step('학교 앞 거리·아파트·공원 세우는 중');
   buildCity(W, T, R, props, isRoad, isWalk);
   step('뒷산 숲 심는 중');
@@ -91,9 +93,35 @@ export function generateWorld(W, onStep) {
   props.lanes.push([[ROADS.vx[0] + L, ROADS.hz[0] + L], [ROADS.vx[0] + L, ROADS.hz[1] - L], [ROADS.vx[1] - L, ROADS.hz[1] - L], [ROADS.vx[1] - L, ROADS.hz[0] + L]]);
   props.lanes.push([[ROADS.vx[0] + L, 4], [ROADS.vx[0] + L, ROADS.hz[0] - 8], [ROADS.vx[0] - L, ROADS.hz[0] - 8], [ROADS.vx[0] - L, 4]]);
   props.lanes.push([[ROADS.vx[1] + L, ROADS.hz[1] + 8], [ROADS.vx[1] + L, SZ - 6], [ROADS.vx[1] - L, SZ - 6], [ROADS.vx[1] - L, ROADS.hz[1] + 8]]);
-  props.npcAreas.push({ x0: 131, z0: 64, x1: 169, z1: 118, n: 10 }, { x0: 70, z0: 70, x1: 104, z1: 106, n: 6 }, { x0: 112, z0: 66, x1: 128, z1: 118, n: 3 });
+  const F = props.field || { x0: 108, z0: 68, x1: 152, z1: 95 };
+  props.npcAreas.push({ x0: F.x0 + 2, z0: F.z0 + 2, x1: F.x1 - 2, z1: F.z1 - 2, n: 10 }, { x0: 90, z0: 96, x1: 168, z1: 101, n: 6 }, { x0: 88, z0: 66, x1: 106, z1: 96, n: 3 });
   props.npcAreas.push({ x0: 64, z0: 51, x1: 194, z1: 52, n: 6 }, { x0: 64, z0: 60, x1: 194, z1: 61, n: 5 }, { x0: 6, z0: 66, x1: 48, z1: 190, n: 4 });
-  props.spawn = { x: 150.5, y: G, z: 66.5 };
+  if (!props.spawn) props.spawn = { x: 150.5, y: G, z: 66.5 };
   props.busStops = [{ name: '학교 앞', x: 178.5, z: 58.5 }, { name: '마트', x: 206, z: 53.5 }, { name: '아파트', x: 206, z: 90 }, { name: '공원', x: 50, z: 128.5 }];
   return props;
+}
+
+// 세계 · 높이표 · 지금까지 놓인 소품 좌표를 x 축으로 뒤집기 (칸 x → 256 - x · 위치 p → 257 - p · 동/서 반블록과 간판 방향도 바꿈)
+function mirrorX(W, height, props) {
+  const { HALF_XN, HALF_XP } = SHAPE;
+  const d = W.data, sh = W.shape, col = SZ * SY;
+  const flipShape = (v) => (v === HALF_XN ? HALF_XP : v === HALF_XP ? HALF_XN : v);
+  for (let x = 1; x < 128; x++) {
+    const a = x * col, b = (256 - x) * col;
+    for (let i = 0; i < col; i++) { const t = d[a + i]; d[a + i] = d[b + i]; d[b + i] = t; const u = flipShape(sh[a + i]); sh[a + i] = flipShape(sh[b + i]); sh[b + i] = u; }
+    for (let z = 0; z < SZ; z++) { const t = height[x * SZ + z]; height[x * SZ + z] = height[(256 - x) * SZ + z]; height[(256 - x) * SZ + z] = t; }
+  }
+  for (let i = 0; i < col; i++) sh[128 * col + i] = flipShape(sh[128 * col + i]);
+  const mp = (p) => 257 - p, mc = (c) => 256 - c, face = (f) => (f === 'east' ? 'west' : f === 'west' ? 'east' : f);
+  const rect = (o) => { if (o.x0 !== undefined) { const a = mc(o.x1), b = mc(o.x0); o.x0 = a; o.x1 = b; } if (o.x !== undefined) o.x = mp(o.x); if (o.cx !== undefined) o.cx = mp(o.cx); };
+  for (const s of props.signs) { s.x = mp(s.x); s.facing = face(s.facing); }
+  for (const z of props.zones) rect(z);
+  for (const pl of props.places) rect(pl);
+  for (const l of props.lamps) l.x = mp(l.x);
+  for (const b of props.benches) b.x = mc(b.x) - 1;
+  for (const t of props.trafficLights) t.x = mc(t.x);
+  if (props.field) rect(props.field);
+  if (props.spawn) props.spawn.x = mp(props.spawn.x);
+  if (props.carSpawn) { props.carSpawn.x = mp(props.carSpawn.x); props.carSpawn.heading = -(props.carSpawn.heading || 0); }
+  if (props.homes) for (const k of Object.keys(props.homes)) { const h = props.homes[k]; if (h) h[0] = mp(h[0]); }
 }
