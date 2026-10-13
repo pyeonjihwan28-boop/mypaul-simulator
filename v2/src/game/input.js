@@ -12,7 +12,7 @@ export class Input {
     this.stick = { active: false, id: -1, cx: 0, cy: 0, x: 0, y: 0 };
     this.lookTouch = { id: -1, x: 0, y: 0 };
     this.hotbarSel = 0;
-    this.breakHeld = false; this.placeHeld = false;
+    this.breakHeld = false; this.placeHeld = false; this.reverseT = 0;
   }
   start() {
     const c = this.canvas;
@@ -60,6 +60,8 @@ export class Input {
     btn('tMenu', () => this.edges.add('menu'));
     btn('tWeapon', () => this.edges.add('weapon'));
     btn('tView', () => this.edges.add('camera'));
+    btn('tBag', () => this.edges.add('bag'));
+    btn('tSet', () => this.edges.add('settings'));
   }
   _stickMove(e, knob, R) {
     let dx = e.clientX - this.stick.cx, dy = e.clientY - this.stick.cy; const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
@@ -73,6 +75,7 @@ export class Input {
     if (k.has('KeyD') || k.has('ArrowRight')) x += 1; if (k.has('KeyA') || k.has('ArrowLeft')) x -= 1;
     if (this.stick.active) { x = this.stick.x; y = this.stick.y; }
     const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+    if (this.reverseT > 0) { this.reverseT -= 1 / 60; x = -x; y = -y; }
     this.move.x = x; this.move.y = y;
     this.run = k.has('ShiftLeft') || k.has('ShiftRight') || !!this.runTouch;
     this.brake = k.has('Space');

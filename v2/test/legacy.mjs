@@ -1,0 +1,13 @@
+import { chromium } from '/opt/npm-tools/node_modules/playwright/index.mjs';
+const b = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl'] });
+const page = await b.newPage({ viewport: { width: 960, height: 540 } });
+const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+await page.goto('http://localhost:8123/?nonet');
+const key = await page.evaluate(() => { const a = window.__mypaul; return a.saveKey; }).catch(() => null);
+await page.evaluate((k) => { const key = k || Object.keys(localStorage).find((x) => /mypaul/.test(x)) || 'mypaul-babylon'; localStorage.setItem(key, JSON.stringify({ name: '옛저장', inv: { 34: 10, 3: 5, 2: 7 }, stats: { coins: 777 } })); return key; }, key);
+await page.goto('http://localhost:8123/?auto=1&nonet&gfx=low', { waitUntil: 'load' });
+await page.waitForFunction(() => document.getElementById('load').hidden, null, { timeout: 180000 });
+await page.waitForTimeout(1500);
+console.log(JSON.stringify(await page.evaluate(() => { const a = window.__mypaul; return { key: a.saveKey, name: a.save.name, coins: a.stats.coins, slots: a.inv.slots.filter(Boolean).map((s) => s.id + 'x' + s.n) }; })));
+console.log(errs.join('\n') || 'no errors');
+await b.close();

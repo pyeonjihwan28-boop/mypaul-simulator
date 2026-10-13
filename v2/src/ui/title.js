@@ -1,5 +1,6 @@
 // 첫 화면 — 전 판 구성 그대로: 제목 · 기기 추천 그래픽 · 플레이 방식 · 서버/설정/조작법 · 전체 채팅 · 혼자/같이/이어 하기 · 이름 정하기.
 import { PRESETS } from '../render/quality.js';
+import { VERSION, NOTES } from '../version.js';
 import { WEEKDAYS } from '../game/stats.js';
 
 const $ = (id) => document.getElementById(id);
@@ -29,7 +30,7 @@ export class Title {
     $('sHelp').onclick = () => this.help();
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); this.installEvt = e; $('sInstall').hidden = false; });
     $('sInstall').onclick = async () => { if (!this.installEvt) return; this.installEvt.prompt(); try { await this.installEvt.userChoice; } catch { /* 취소 */ } this.installEvt = null; $('sInstall').hidden = true; };
-    $('sVer').textContent = `${app.edition === 'beta' ? '베타' : '정식'} 버전 · 빌드 ${app.build} · Babylon.js 새 엔진`;
+    $('sVer').textContent = `${VERSION} ${app.edition === 'beta' ? '베타' : '정식'} · 빌드 ${app.build} · Babylon.js 새 엔진`; $('sVer').style.cursor = 'pointer'; $('sVer').onclick = () => app.dialog.show({ title: `${VERSION} 새 소식`, lines: NOTES, options: [] });
     // 채팅 (접속되면 net 이 채움)
     $('sChatSend').onclick = () => this.sendChat();
     $('sChatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.sendChat(); } e.stopPropagation(); });
@@ -62,8 +63,8 @@ export class Title {
   help() {
     const m = this.app.mobile;
     this.app.dialog.show({ title: '조작법', lines: m
-      ? ['왼쪽 조이스틱: 걷기 · 오른쪽 화면 밀기: 둘러보기', 'E: 장소에서 할 일(먹기 · 수업 · 운동 · 심부름 · 자기) · 차 타기/내리기', '짓기: 캐기 · 놓기 버튼 · 핫바에서 블록 고르기 · V 모양', '점프 · 달리기 버튼 · 일과 시간에 그 장소에 가면 자동 출석']
-      : ['W A S D 걷기 · Shift 달리기 · Space 점프 · 마우스 둘러보기 · 휠 줌(가까이 당기면 1인칭)', 'E 장소에서 할 일(먹기 · 수업 · 운동 · 심부름 · 자기) · 차 타기/내리기', 'X 짓기 모드 · 좌클릭 캐기 · 우클릭 놓기 · 1~9 블록 · Q 다음 블록 · V 반블록 모양', 'T 시간 빨리 · Esc 마우스 풀기 · Enter 채팅(같이 하기)', '일과 시간에 그 장소에 2초 있으면 자동 출석 · 22시 넘어 내 방(101호)에서 자면 다음 날'], options: [] });
+      ? ['왼쪽 조이스틱: 걷기 · 오른쪽 화면 밀기: 둘러보기', 'E: 장소에서 할 일(먹기 · 수업 · 운동 · 심부름 · 자기) · 차 타기/내리기', '짓기: 캐기 버튼 꾹 · 놓기 버튼 · 핫바에서 고르기 · 가방 버튼(옮기기 · 먹기 · 제작)', '점프 · 달리기 버튼 · 일과 시간에 그 장소에 가면 자동 출석']
+      : ['W A S D 걷기 · Shift 달리기 · Space 점프 · 마우스 둘러보기 · 휠 줌(가까이 당기면 1인칭)', 'E 장소에서 할 일(먹기 · 수업 · 운동 · 심부름 · 자기) · 차 타기/내리기', 'X 짓기 모드 · 좌클릭 꾹 캐기 · 우클릭 놓기(음식이면 먹기) · 1~9 · 휠 · Q 칸 고르기 · V 반블록 모양 · I 가방(옮기기 · 제작)', 'T 시간 빨리 · Esc 마우스 풀기 · Enter 채팅(같이 하기)', '일과 시간에 그 장소에 2초 있으면 자동 출석 · 22시 넘어 내 방(101호)에서 자면 다음 날'], options: [] });
   }
   // 채팅
   setOnline(n) { $('sOnline').textContent = n == null ? '● 접속 확인 중' : `● 지금 ${n}명 접속 중`; $('sChatN').textContent = n == null ? '연결 중…' : `지금 접속 ${n}명`; }

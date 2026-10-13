@@ -32,6 +32,7 @@ import { FollowCamera } from './game/camera.js';
 import { Car, Traffic } from './game/car.js';
 import { Students } from './game/npc.js';
 import { Builder } from './game/build.js';
+import { Inventory } from './game/inventory.js';
 import { Stats } from './game/stats.js';
 import { Quests } from './game/quests.js';
 import { Interact } from './game/interact.js';
@@ -43,6 +44,8 @@ import { RPG } from './game/rpg.js';
 import { Combat } from './game/combat.js';
 import { Ride } from './game/ride.js';
 import { Menu } from './ui/menu.js';
+import { Teachers } from './game/teachers.js';
+import { Boss } from './game/boss.js';
 
 const $ = (id) => document.getElementById(id);
 const BUILD = (document.currentScript?.src.match(/v=([^&]+)/) || [])[1] || 'dev';
@@ -65,7 +68,7 @@ class App {
     engine.enableOfflineSupport = false;
     this.engine = engine;
     const det = detectTier(engine);
-    this.mobile = det.mobile; this.detected = det; this.build = BUILD; this.edition = document.title.includes('베타') ? 'beta' : 'main'; this.state = 'loading';
+    this.mobile = det.mobile; this.detected = det; if (this.mobile) document.body.classList.add('mobile'); this.build = BUILD; this.edition = document.title.includes('베타') ? 'beta' : 'main'; this.state = 'loading';
     const tierName = this.params.get('q') || this.save.quality || det.tier;
     this.tierName = PRESETS[tierName] ? tierName : det.tier;
     this.preset = { ...PRESETS[this.tierName], noAO: this.params.has('noao'), simpleShadow: this.params.has('simpleshadow') };
@@ -134,7 +137,8 @@ class App {
     this.car = new Car(scene, world, props.carSpawn, lighting);
     this.traffic = new Traffic(scene, world, props.lanes, this.preset.cars, lighting);
     this.students = new Students(scene, world, props.npcAreas, this.preset.npc);
-    this.builder = new Builder(scene, world, chunks, this.player, this.followCam, this.input, this.save);
+    this.inv = new Inventory(this.save);
+    this.builder = new Builder(scene, world, chunks, this.player, this.followCam, this.input, this.inv);
     this.car.fuel = this.save.fuel ?? 70;
     for (const m of [...this.player.meshes, ...this.car.meshes, ...this.traffic.meshes, ...this.students.meshes]) lighting.addCaster(m);
     this.dyn = new DynamicResolution(engine, this.preset);
@@ -147,6 +151,10 @@ class App {
     this.interact = new Interact(this);
     this.rpg = new RPG(this.save, this.stats);
     this.combat = new Combat(this);
+    this.teachers = new Teachers(this);
+    this.boss = new Boss(this);
+    this.combat.hitTargets = () => this.boss.targets();
+    this.rpg.extra = this.teachers.bonusStats();
     this.ride = new Ride(this);
     this.hud = new HUD(this);
     this.menu = new Menu(this);
@@ -159,6 +167,7 @@ class App {
     this.devCam = (this.params.get('dev') || '').startsWith('cam');
     this.net = new Net(this);
     this.builder.onEdit = (x, y, z, id, sh) => this.net.sendEdit(x, y, z, id, sh);
+    this.builder.onEat = (it) => { const r = this.stats.apply(it.fx || {}); this.hud.tip(`${it.icon} ${it.n} 먹었어요 — ${r || '맛있다'}`, 4); this.hud.refreshStats(); };
     this.title = new Title(this);
     $('load').hidden = true;
     this.state = 'title'; this.titleT = 0;
@@ -226,7 +235,7 @@ class App {
   saveNow() {
     if (this._noAutosave) return;
     const p = this.player.position; this.save.pos = { x: p.x, y: p.y, z: p.z }; this.save.time = this.sky.time; this.save.savedAt = Date.now();
-    this.save.stats = this.stats.toJSON(); this.save.quests = this.quests.toJSON(); this.save.inv = this.builder.inv; this.save.fuel = this.car.fuel; this.save.rpg = this.rpg.toJSON();
+    this.save.stats = this.stats.toJSON(); this.save.quests = this.quests.toJSON(); this.save.inv = this.inv.toJSON(); this.save.fuel = this.car.fuel; this.save.rpg = this.rpg.toJSON(); this.save.teachers = this.teachers.toJSON(); this.rpg.extra = this.teachers.bonusStats();
     this._store();
   }
 
@@ -254,7 +263,8 @@ class App {
         this.followCam.update(dt);
         this.builder.update(dt);
       }
-      if (playing) { this.interact.update(dt); this.combat.update(dt); this.ride.update(dt); }
+      if (playing) { this.interact.update(dt); this.combat.update(dt); this.ride.update(dt); this.boss.update(dt); if (!this.boss.active && this.rpg.hp < this.rpg.maxHp) this.rpg.hp = Math.min(this.rpg.maxHp, this.rpg.hp + dt * 2); }
+      this.teachers.update(dt, this.player.position);
       this.net?.update(dt);
       this.traffic.update(dt, night, this.player.position);
       this.students.update(dt, this.player.position);

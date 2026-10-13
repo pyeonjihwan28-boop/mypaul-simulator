@@ -97,8 +97,10 @@ export class RPG {
     this.gear = r.gear || []; this.gearSeq = r.gearSeq ?? 0; this.on = r.on || { hat: 0, top: 0, shoes: 0, acc: 0 };
     this.vehicles = r.vehicles || {}; this.vehicle = r.vehicle || '';
     this.hp = r.hp ?? 100; this.kills = r.kills ?? 0; this.destroyed = r.destroyed ?? 0; this.bossLv = r.bossLv || {};
+    this.extra = {}; // 호감도 보너스 능력치
     this.log = [];
   }
+  S(k) { return (this.st[k] || 0) + (this.extra[k] || 0); }
   toJSON() { return { lv: this.lv, xp: this.xp, sp: this.sp, rebirth: this.rebirth, st: this.st, weapons: this.weapons, weapon: this.weapon, gear: this.gear, gearSeq: this.gearSeq, on: this.on, vehicles: this.vehicles, vehicle: this.vehicle, hp: this.hp, kills: this.kills, destroyed: this.destroyed, bossLv: this.bossLv }; }
   get need() { return xpNeed(this.lv); }
   get bonus() { return 1 + this.rebirth * 0.1; } // 환생 보너스(코인·경험치)
@@ -121,9 +123,9 @@ export class RPG {
   // ---- 무기 ----
   ownW(k) { return !!this.weapons[k]; }
   buyW(k) { const w = WEAPON_BY[k]; if (!w || this.ownW(k) || !this.stats.canPay(w.price)) return false; this.stats.apply({ coins: -w.price }); this.weapons[k] = { up: 0, ench: [] }; return true; }
-  weaponDmg(k = this.weapon) { const w = WEAPON_BY[k], s = this.weapons[k]; if (!w) return 0; const ench = s?.ench || []; return w.dmg * upMult(s?.up || 0) * (1 + this.st.study * 0.012) * (1 + (this.fx().dmg || 0)) * (ench.includes('big') ? 1.25 : 1); }
-  weaponCd(k = this.weapon) { const w = WEAPON_BY[k], s = this.weapons[k]; if (!w) return 1000; const ench = s?.ench || []; return w.cd * (1 - this.st.focus * 0.004) * (1 + (this.fx().cd || 0)) * (ench.includes('rapid') ? 0.7 : 1); }
-  weaponRadius(k = this.weapon) { const w = WEAPON_BY[k], s = this.weapons[k]; if (!w) return 1; const ench = s?.ench || []; return w.r * (1 + this.st.project * 0.01) * (1 + (this.fx().rad || 0)) * (ench.includes('big') ? 1.4 : 1); }
+  weaponDmg(k = this.weapon) { const w = WEAPON_BY[k], s = this.weapons[k]; if (!w) return 0; const ench = s?.ench || []; return w.dmg * upMult(s?.up || 0) * (1 + this.S('study') * 0.012) * (1 + (this.fx().dmg || 0)) * (ench.includes('big') ? 1.25 : 1); }
+  weaponCd(k = this.weapon) { const w = WEAPON_BY[k], s = this.weapons[k]; if (!w) return 1000; const ench = s?.ench || []; return w.cd * (1 - this.S('focus') * 0.004) * (1 + (this.fx().cd || 0)) * (ench.includes('rapid') ? 0.7 : 1); }
+  weaponRadius(k = this.weapon) { const w = WEAPON_BY[k], s = this.weapons[k]; if (!w) return 1; const ench = s?.ench || []; return w.r * (1 + this.S('project') * 0.01) * (1 + (this.fx().rad || 0)) * (ench.includes('big') ? 1.4 : 1); }
   upgradeW(k, rnd = Math.random) {
     const w = WEAPON_BY[k], s = this.weapons[k]; if (!w || !s || s.up >= 10) return { ok: false, msg: s?.up >= 10 ? '이미 +10이에요' : '없는 무기예요' };
     const cost = upCost(w, s.up); if (!this.stats.canPay(cost)) return { ok: false, msg: `코인이 모자라요 (${cost.toLocaleString()}원)` };
@@ -165,7 +167,7 @@ export class RPG {
   // ---- 탈것 ----
   buyV(k) { const v = VEHICLE_BY[k]; if (!v || this.vehicles[k] || !this.stats.canPay(v.price)) return false; this.stats.apply({ coins: -v.price }); this.vehicles[k] = { up: 0 }; return true; }
   // ---- 체력 ----
-  get maxHp() { return Math.round(100 * (1 + this.st.body * 0.01) * (1 + (this.fx().hp || 0))); }
-  takenMult() { return Math.max(0.3, (1 + this.st.stress * 0.004 - this.st.rep * 0.004) * (1 + (this.fx().taken || 0))); }
-  runMult() { return 1 + this.st.body * 0.003 + (this.fx().run || 0); }
+  get maxHp() { return Math.round(100 * (1 + this.S('body') * 0.01) * (1 + (this.fx().hp || 0))); }
+  takenMult() { return Math.max(0.3, (1 + this.S('stress') * 0.004 - this.S('rep') * 0.004) * (1 + (this.fx().taken || 0))); }
+  runMult() { return 1 + this.S('body') * 0.003 + (this.fx().run || 0); }
 }

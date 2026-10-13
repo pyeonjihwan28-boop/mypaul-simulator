@@ -21,6 +21,8 @@ await q(A, "window.__mypaul.chunks.setBlock(140, 8, 84, 3, 0); window.__mypaul.n
 await B.waitForTimeout(800);
 console.log('B block at 140,8,84 =', await q(B, "window.__mypaul.world.get(140, 8, 84)"), '(3 expected)');
 // 늦게 온 C 가 편집 내역을 받는지
+// (헤드리스 GPU 가 느려서) A·B 그리기를 멈추고 C 를 연다 — 통신은 그리기와 상관없이 돈다
+await q(A, "window.__mypaul.engine.stopRenderLoop()"); await q(B, "window.__mypaul.engine.stopRenderLoop()");
 const C = await open('CC'); await C.waitForTimeout(5000);
 console.log('C block at 140,8,84 =', await q(C, "window.__mypaul.world.get(140, 8, 84)"), '(3 expected) · C remote', await q(C, "window.__mypaul.net.remote.count"));
 await A.screenshot({ path: 'shots/multi_A.png' });

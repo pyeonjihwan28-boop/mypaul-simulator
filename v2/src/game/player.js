@@ -14,6 +14,7 @@ export class Player {
     this.onGround = false; this.inCar = false; this.speed = 0; this.t = 0;
     this.moveYaw = 0; // 카메라가 넣어주는 이동 기준 방향
     this.speedMult = 1; // 탈것 · 능력치
+    this.invT = 0; this.pullTo = null; // 보스전: 무적 시간 · 끌려감
     this.char = makeCharacter(scene, PALETTES[0], 0, 'player');
     this.meshes = this.char.meshes;
     this.visualY = this.position.y;
@@ -41,6 +42,8 @@ export class Player {
     const accel = this.onGround ? 34 : 10;
     v.x += (dx * target * Math.min(1, mag) - v.x) * Math.min(1, accel * dt);
     v.z += (dz * target * Math.min(1, mag) - v.z) * Math.min(1, accel * dt);
+    if (this.invT > 0) this.invT -= dt;
+    if (this.pullTo) { const pt = this.pullTo; pt.t -= dt; if (pt.t <= 0) this.pullTo = null; else { const d = pt.p.subtract(p); d.y = 0; const l = d.length(); if (l > 1.5) { v.x += d.x / l * pt.k * dt * 10; v.z += d.z / l * pt.k * dt * 10; } } }
     // 점프 · 중력
     if (inp.jump && this.onGround) { v.y = JUMP_V; this.onGround = false; }
     v.y -= GRAVITY * dt; if (v.y < -40) v.y = -40;

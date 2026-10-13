@@ -1,16 +1,19 @@
 // 메뉴 — 능력치(레벨·환생) · 가방(블록·무기·장비·탈것) · 상점(무기 24·장비 뽑기·탈것 24). 전 판 구성.
-import { BLOCKS } from '../world/blocks.js';
+import { ITEMS, RECIPES, CATS, itemOf } from '../game/items.js';
+import { HOTBAR_N } from '../game/inventory.js';
 import { STATS, WEAPONS, WEAPON_BY, ENCHANTS, GRADE6, GRADES, SLOTS, VEHICLES, VEHICLE_BY, UP_RATE, upCost, xpNeed, FX_LABEL, gearFx } from '../game/rpg.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const won = (n) => Math.round(n).toLocaleString() + '원';
 const pct = (v) => Math.round(v * 100) + '%';
-const TABS = [['stat', '능력치'], ['bag', '가방'], ['shop', '상점'], ['ride', '탈것']];
+const TABS = [['stat', '능력치'], ['bag', '가방'], ['craft', '제작'], ['shop', '상점'], ['ride', '탈것']];
+const FX_N = { hunger: '배부름', energy: '에너지', stress: '스트레스', grade: '성적', fitness: '체력', coins: '코인' };
+const fxText = (fx) => Object.entries(fx || {}).map(([k, v]) => `${FX_N[k] || k} ${v > 0 ? '+' : ''}${v}`).join(' · ');
 
 export class Menu {
   constructor(app) {
-    this.app = app; this.open = false; this.tab = 'stat'; this.el = $('menuPanel');
+    this.app = app; this.open = false; this.tab = 'stat'; this.el = $('menuPanel'); this.selSlot = -1; this.craftCat = '블록';
     $('menuClose').onclick = () => this.toggle(false);
     $('menuTabs').innerHTML = TABS.map(([k, n]) => `<button class="btn mt" data-tab="${k}">${n}</button>`).join('');
     $('menuTabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) { this.tab = b.dataset.tab; this.render(); } };
@@ -40,12 +43,22 @@ export class Menu {
       case 'buyV': this.toast(rpg.buyV(x) ? `${VEHICLE_BY[x].n} 샀어요!` : '코인이 모자라요'); break;
       case 'rideV': rpg.vehicle = x; app.ride?.set(x); this.toast(x ? `${VEHICLE_BY[x].n} 탔어요 — 걷기가 ${VEHICLE_BY[x].spd}배 빨라요` : '내렸어요'); break;
       case 'tab': this.tab = x; break;
+      // ---- 가방 ----
+      case 'slot': { const i = +x; if (this.selSlot < 0) { if (app.inv.slots[i]) this.selSlot = i; } else if (this.selSlot === i) this.selSlot = -1; else { app.inv.move(this.selSlot, i); this.selSlot = -1; } break; }
+      case 'eat': if (app.builder.eat(this.selSlot)) { if (!app.inv.slots[this.selSlot]) this.selSlot = -1; } break;
+      case 'tohb': { const i = this.selSlot; if (i >= 0) { let e = -1; for (let k = 0; k < HOTBAR_N; k++) if (!app.inv.slots[k]) { e = k; break; } if (e < 0) e = app.builder.sel; if (i !== e) app.inv.move(i, e); this.selSlot = -1; } break; }
+      case 'split': app.inv.split(this.selSlot); break;
+      case 'drop': { const sl = app.inv.slots[this.selSlot]; if (sl) { const it = itemOf(sl.id); app.inv.drop(this.selSlot); this.toast(`${it.n} ${sl.n}개를 버렸어요`); } this.selSlot = -1; break; }
+      case 'hold': { const i = this.selSlot; if (i >= 0 && i < HOTBAR_N) { app.builder.sel = i; if (!app.builder.active) app.builder.toggle(); this.toast(`${itemOf(app.inv.slots[i].id).n} 들었어요`); } break; }
+      // ---- 제작 ----
+      case 'ccat': this.craftCat = x; break;
+      case 'craft': { const r = RECIPES[+x]; const n = app.inv.craft(r, +y || 1); const it = itemOf(r.out); this.toast(n > 0 ? `${it.icon} ${it.n} ${r.n * n}개 만들었어요` : n < 0 ? '가방에 자리가 없어요' : '재료가 모자라요'); break; }
     }
     app.hud.refreshStats(); this.render();
   }
   render() {
     for (const b of $('menuTabs').querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === this.tab);
-    const f = { stat: this.rStat, bag: this.rBag, shop: this.rShop, ride: this.rRide }[this.tab] || this.rStat;
+    const f = { stat: this.rStat, bag: this.rBag, craft: this.rCraft, shop: this.rShop, ride: this.rRide }[this.tab] || this.rStat;
     $('menuBody').innerHTML = f.call(this);
   }
   rStat() {
@@ -60,14 +73,27 @@ export class Menu {
   }
   rBag() {
     const app = this.app, rpg = app.rpg, b = app.builder;
-    const blocks = Object.entries(b.inv).filter(([, n]) => n > 0).map(([id, n]) => `<span class="chip">${BLOCKS[id].icon} ${BLOCKS[id].name} <b>${n}</b></span>`).join('') || '<small>없어요 — 캐거나 매점·문방구에서 사요</small>';
+    const inv = app.inv, sel = this.selSlot, selIt = sel >= 0 && inv.slots[sel] ? itemOf(inv.slots[sel].id) : null;
+    const grid = inv.slots.map((s, i) => { const it = s ? itemOf(s.id) : null; return `<div class="islot${i < HOTBAR_N ? ' hb' : ''}${i === b.sel ? ' on' : ''}${i === sel ? ' sel' : ''}" data-act="slot" data-a="${i}" title="${it ? it.n : ''}">${i < HOTBAR_N ? `<i>${i + 1}</i>` : ''}${it ? it.icon : ''}${s && it.kind !== 'tool' ? `<em>${s.n}</em>` : ''}</div>`; }).join('');
+    const info = selIt ? `<div class="row isel"><span><b>${selIt.icon} ${selIt.n}</b> <small>× ${inv.slots[sel].n} · ${{ block: '블록 — 핫바에 두고 놓기', mat: '재료 — 제작에 써요', food: '음식 — ' + fxText(selIt.fx), tool: `도구 — 캐는 속도 ×${selIt.speed}` }[selIt.kind] || ''}</small></span>
+      <span class="btns">${selIt.kind === 'food' ? '<button class="btn mini acc" data-act="eat">먹기</button>' : ''}${sel < HOTBAR_N ? '<button class="btn mini acc" data-act="hold">손에 들기</button>' : '<button class="btn mini" data-act="tohb">핫바로</button>'}<button class="btn mini" data-act="split" ${inv.slots[sel].n > 1 ? '' : 'disabled'}>반 나누기</button><button class="btn mini" data-act="drop">버리기</button></span></div>` : `<small>칸을 누르면 고르고, 다른 칸을 누르면 옮겨요 · 윗줄 9칸이 핫바(숫자 키) · 빈 칸 ${inv.free}</small>`;
+    const blocks = `<div class="inv">${grid}</div>${info}`;
     const weapons = Object.keys(rpg.weapons).map((k) => { const w = WEAPON_BY[k], st = rpg.weapons[k], g = GRADE6[w.g], on = rpg.weapon === k; return `<div class="card w ${on ? 'on' : ''}"><div class="row"><b style="color:${g.c}">${w.e} ${w.n}${st.up ? ` +${st.up}` : ''}</b><span style="color:${g.c}">${g.n}</span></div><small>${w.d} · 피해 ${Math.round(rpg.weaponDmg(k))} · 재사용 ${(rpg.weaponCd(k) / 1000).toFixed(2)}초 · 범위 ${rpg.weaponRadius(k).toFixed(1)}m${st.ench.length ? ' · ' + st.ench.map((e) => `<i style="color:${ENCHANTS[e].c}">${ENCHANTS[e].n}</i>`).join(' ') : ''}</small>
       <div class="btns"><button class="btn mini ${on ? 'acc' : ''}" data-act="equipW" data-a="${k}">${on ? '장착 중' : '장착'}</button><button class="btn mini" data-act="upW" data-a="${k}" ${st.up >= 10 ? 'disabled' : ''}>강화 +${Math.min(10, st.up + 1)} · ${won(upCost(w, st.up))} · ${Math.round((UP_RATE[st.up] || 0) * 100)}%</button><button class="btn mini" data-act="enchW" data-a="${k}">인챈트</button></div></div>`; }).join('');
     const worn = new Set(Object.values(rpg.on));
     const gear = SLOTS.map((sl) => { const items = rpg.gear.filter((g) => g.s === sl.k).sort((a, b) => b.r - a.r || b.up - a.up); const groups = {}; for (const g of items) if (!worn.has(g.id)) groups[g.r] = (groups[g.r] || 0) + 1;
       return `<div class="card"><div class="row"><b>${sl.n}</b><span>${items.length}개 · 끼는 중: ${(items.find((g) => g.id === rpg.on[sl.k]) || {}).n || '없음'}</span></div>${items.map((g) => { const fx = gearFx(g.s, g.r); const on = rpg.on[sl.k] === g.id; return `<div class="row gi"><span><b style="color:${GRADES[g.r].c}">${g.n}${g.up ? ` +${g.up}` : ''}</b> <small>${GRADES[g.r].n} · ${Object.entries(fx).map(([k, v]) => `${FX_LABEL[k]} ${v > 0 ? '+' : ''}${pct(v * (1 + g.up * 0.1))}`).join(' · ')}</small></span><span class="btns"><button class="btn mini ${on ? 'acc' : ''}" data-act="equipG" data-a="${g.id}">${on ? '빼기' : '끼기'}</button><button class="btn mini" data-act="upG" data-a="${g.id}" ${g.up >= 10 ? 'disabled' : ''}>강화 ${Math.round((UP_RATE[g.up] || 0) * 100)}%</button><button class="btn mini" data-act="sellG" data-a="${g.id}" ${on ? 'disabled' : ''}>팔기</button></span></div>`; }).join('') || '<small>없어요 — 상점에서 뽑거나 보스를 잡으면 나와요</small>'}
       ${Object.entries(groups).filter(([, n]) => n >= 3).map(([r]) => `<button class="btn mini" data-act="fuse" data-a="${sl.k}" data-b="${r}">${GRADES[r].n} 3개 합성 → ${GRADES[Math.min(6, +r + 1)].n}</button>`).join('')}</div>`; }).join('');
-    return `<div class="card"><b>🧱 블록 주머니</b><div class="chips">${blocks}</div></div><h4>🔫 무기 (${Object.keys(rpg.weapons).length}/24) — 왼쪽 클릭 · 발사 버튼 · R 로 꺼내고 넣기</h4>${weapons}<h4>🎽 장비 (${rpg.gear.length})</h4>${gear}`;
+    return `<div class="card"><div class="row"><b>🎒 가방 (${inv.slots.filter(Boolean).length}/36칸)</b><button class="btn mini" data-act="tab" data-a="craft">🔨 제작하기</button></div>${blocks}</div><h4>🔫 무기 (${Object.keys(rpg.weapons).length}/24) — 왼쪽 클릭 · 발사 버튼 · R 로 꺼내고 넣기</h4>${weapons}<h4>🎽 장비 (${rpg.gear.length})</h4>${gear}`;
+  }
+  rCraft() {
+    const inv = this.app.inv, cat = this.craftCat;
+    const tabs = CATS.map((c) => `<button class="btn mini ${c === cat ? 'acc' : ''}" data-act="ccat" data-a="${c}">${c}</button>`).join('');
+    const rows = RECIPES.map((r, i) => ({ r, i })).filter(({ r }) => r.cat === cat).sort((a, b) => (inv.canCraft(b.r) ? 1 : 0) - (inv.canCraft(a.r) ? 1 : 0)).map(({ r, i }) => {
+      const it = itemOf(r.out), can = inv.canCraft(r), mx = inv.maxCraft(r);
+      const ins = r.ins.map(([id, n]) => { const ii = itemOf(id), h = inv.count(id); return `<span class="${h >= n ? 'ok' : 'no'}">${ii.icon} ${ii.n} ${h}/${n}</span>`; }).join(' + ');
+      return `<div class="row gi rc ${can ? 'can' : ''}"><span><b>${it.icon} ${it.n}</b> <small>× ${r.n}</small><br><small>${ins}</small></span><span class="btns"><button class="btn mini ${can ? 'acc' : ''}" data-act="craft" data-a="${i}" data-b="1" ${can ? '' : 'disabled'}>만들기</button>${mx >= 5 ? `<button class="btn mini" data-act="craft" data-a="${i}" data-b="${Math.min(10, mx)}">×${Math.min(10, mx)}</button>` : ''}</span></div>`; }).join('');
+    return `<div class="card"><div class="row"><b>🔨 제작</b><span class="btns">${tabs}</span></div><small>재료는 블록을 캐서 모아요 · 통나무 → 판자 → 막대기 → 도구 · 돌·철·다이아 도구는 더 빨리 캐요 · 금 주괴·다이아몬드·네더라이트는 보스가 떨어뜨려요</small></div><div class="card">${rows || '<small>없어요</small>'}</div>`;
   }
   rShop() {
     const rpg = this.app.rpg, s = this.app.stats;

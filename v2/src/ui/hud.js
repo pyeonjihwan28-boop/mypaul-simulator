@@ -1,5 +1,5 @@
 // HUD — 시계 · 날짜 · 장소 · 일과 · 상태 바 · 심부름 · 안내줄(E) · 성능 · 설정 · 핫바 · 안내.
-import { BLOCKS } from '../world/blocks.js';
+import { itemOf } from '../game/items.js';
 import { PRESETS } from '../render/quality.js';
 
 const $ = (id) => document.getElementById(id);
@@ -58,19 +58,25 @@ export class HUD {
   }
   renderHotbar() {
     const b = this.app.builder, el = $('hotbar');
-    el.hidden = !b.active; $('cross').hidden = !b.active;
+    el.hidden = !b.active; $('cross').hidden = !b.active; if (!b.active) $('breakBar').hidden = true;
     if (!b.active) return;
-    const slots = b.slots;
-    el.innerHTML = slots.map((id, i) => `<div class="slot${i === b.sel ? ' on' : ''}${b.count(id) <= 0 ? ' empty' : ''}" data-i="${i}" title="${BLOCKS[id].name}"><i>${i + 1}</i>${BLOCKS[id].icon}<em>${b.count(id)}</em></div>`).join('');
-    for (const s of el.querySelectorAll('.slot')) s.onclick = () => { b.sel = +s.dataset.i; this.renderHotbar(); };
-    this.tip(`짓기: ${BLOCKS[b.blockId].name} ${b.count()}개 · ${b.shapeName} (V 로 모양) · 좌클릭 캐기 · 우클릭 놓기 · Q 다음 블록 · X 끄기`, 4);
+    el.innerHTML = b.slots.map((s, i) => { const it = s ? itemOf(s.id) : null; return `<div class="slot${i === b.sel ? ' on' : ''}${!s ? ' empty' : ''}${it && it.kind !== 'block' ? ' ' + it.kind : ''}" data-i="${i}" title="${it ? it.n : '빈 칸'}"><i>${i + 1}</i>${it ? it.icon : ''}${s && it.kind !== 'tool' ? `<em>${s.n}</em>` : ''}</div>`; }).join('');
+    for (const sl of el.querySelectorAll('.slot')) sl.onclick = () => { const i = +sl.dataset.i; if (b.sel === i && b.item?.kind === 'food') { b.eat(i); return; } b.sel = i; this.renderHotbar(); };
+    this.tip(`짓기: ${b.describe()} · ${this.app.mobile ? '캐기 버튼 꾹 · 놓기 버튼' : '좌클릭 꾹 캐기 · 우클릭 놓기 · 휠/Q 칸 바꾸기 · I 가방 · X 끄기'}`, 4);
   }
   tip(text, sec = 4) { const t = $('tip'); t.textContent = text; t.hidden = false; this.tipT = sec; }
+  // ---- 보스전 ----
+  bossIntro(d, lv, maxHp) { $('biSub').textContent = `${d.t} · 보스 Lv.${lv + 1}`; $('biName').textContent = d.n; $('biSig').textContent = `필살기: ${d.sn}`; $('bossIntro').hidden = false; setTimeout(() => { $('bossIntro').hidden = true; }, 2600); $('bossbar').hidden = false; $('bossName').textContent = `${d.n} · ${d.t}`; this.bossText('대결 시작! 공격을 피하면서 쏴요', 3); }
+  bossBar(b) { $('bossHp').style.width = `${Math.max(0, b.hp / b.maxHp * 100).toFixed(1)}%`; $('bossPh').textContent = `${b.phase === 3 ? '광폭화' : b.phase + '페이즈'} · ${Math.max(0, Math.round(b.hp))} / ${b.maxHp}${b.shield > 0 ? ' · 방어막' : ''}${b.slow > 0 ? ' · 느려짐' : ''}`; const r = this.app.rpg; $('myHp').style.width = `${Math.max(0, r.hp / r.maxHp * 100).toFixed(1)}%`; $('myHpT').textContent = `${Math.max(0, Math.round(r.hp))} / ${r.maxHp}`; if (this.bossMsgT > 0) { this.bossMsgT -= 1 / 60; if (this.bossMsgT <= 0) $('bossMsg').textContent = ''; } }
+  bossEnd() { $('bossbar').hidden = true; $('bossIntro').hidden = true; }
+  bossText(t, sec = 2) { $('bossMsg').textContent = t; this.bossMsgT = sec; }
+  dmgNum(n) { const el = document.createElement('span'); el.textContent = n; el.style.left = `${(Math.random() - 0.5) * 160}px`; $('dmgNums').appendChild(el); setTimeout(() => el.remove(), 1000); }
+  hurt(d, what) { const el = document.createElement('span'); el.className = 'me'; el.textContent = `−${d} ${what || ''}`; el.style.left = `${(Math.random() - 0.5) * 120}px`; el.style.top = '60px'; $('dmgNums').appendChild(el); setTimeout(() => el.remove(), 1000); const fx = $('hurtFx'); fx.classList.add('on'); setTimeout(() => fx.classList.remove('on'), 60); }
   levelUp(ups) { const r = this.app.rpg; this.tip(`🎉 LEVEL UP! Lv.${r.lv} · 능력치 포인트 +${4 * ups} · 코인 +${50 * ups} — 메뉴(M) → 능력치에서 써요`, 7); }
   onArmed() {
     const c = this.app.combat, w = c.weapon, el = $('weap');
     el.hidden = !c.armed || !w;
-    if (c.armed && w) { const st = this.app.rpg.weapons[w.k] || { up: 0, ench: [] }; $('weapName').textContent = `${w.e} ${w.n}${st.up ? ' +' + st.up : ''}`; $('weapSub').textContent = `${this.app.mobile ? '발사 버튼' : '왼쪽 클릭'} · 피해 ${Math.round(this.app.rpg.weaponDmg(w.k))} · R 넣기`; }
+    if (c.armed && w) { const st = this.app.rpg.weapons[w.k] || { up: 0, ench: [] }; $('weapName').textContent = `${w.e} ${w.n}${st.up ? ' +' + st.up : ''}`; $('weapSub').textContent = `${this.app.mobile ? '발사 버튼' : '왼쪽 클릭'} · 피해 ${Math.round(this.app.rpg.weaponDmg(w.k))} · ${this.app.mobile ? '무기 버튼으로 넣기' : 'R 넣기'}`; }
     const tb = $('tBreak'); if (tb) tb.textContent = c.armed ? '발사' : '캐기';
     $('btnWeapon').classList.toggle('acc', c.armed);
   }
@@ -108,6 +114,7 @@ export class HUD {
     const pr = $('prompt'), text = app.interact.prompt();
     if (text && !app.dialog.open && !app.builder.active) { pr.hidden = false; pr.innerHTML = `<kbd>E</kbd>${text.replace(/^E( 버튼)? · /, '')}`; } else pr.hidden = true;
     if (this.tipT > 0) { this.tipT -= dt; if (this.tipT <= 0) $('tip').hidden = true; }
+    const bb = $('breakBar'); if (app.builder.active && app.builder.prog > 0) { bb.hidden = false; bb.firstElementChild.style.width = `${Math.round(app.builder.prog * 100)}%`; } else bb.hidden = true;
     // E: 차 타기/내리기 → 장소 상호작용
     if (app.input.consume('action') && !app.dialog.open) {
       if (app.player.inCar) { app.player.inCar = false; app.followCam.car = null; const e = app.car.exitPosition(); app.player.position.copyFrom(e); app.player.fixSpawn(); app.player.setVisible(true); this.tip('내렸어요'); }
@@ -116,6 +123,7 @@ export class HUD {
     }
     if (app.input.consume('chat') && !app.dialog.open) this.openChat(!this.chatOpen);
     if (app.input.consume('menu')) app.menu.toggle(undefined, app.menu.open ? undefined : 'stat');
+    if (app.input.consume('settings')) this.toggleSettings();
     if (app.input.consume('bag')) app.menu.toggle(!app.menu.open || app.menu.tab !== 'bag', 'bag');
     if (app.combat.armed) { const w = app.combat.weapon; $('weapCd').style.width = `${Math.round((1 - Math.min(1, app.combat.cool / Math.max(1, app.rpg.weaponCd(w.k)))) * 100)}%`; }
     if (app.input.consume('timeFast')) { app.timeFlow = app.timeFlow >= 4 ? 1 : 4; $('selFlow').value = String(app.timeFlow); this.tip(app.timeFlow >= 4 ? '시간이 빨리 흘러요' : '시간 흐름 보통'); }

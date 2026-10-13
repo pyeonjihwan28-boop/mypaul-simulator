@@ -3,6 +3,9 @@
 import { WORLD, B } from '../world/blocks.js';
 import { PLACE_GROUPS } from './stats.js';
 import { pickQuestions } from './quiz.js';
+import { ITEMS } from './items.js';
+
+const FOOD_BY_NAME = Object.fromEntries(Object.values(ITEMS).filter((i) => i.kind === 'food').map((i) => [i.n, i.id]));
 
 const won = (n) => n.toLocaleString() + '원';
 const SKIP = new Set(['stairhall', 'gate', 'parking']);
@@ -29,6 +32,7 @@ export class Interact {
       if (d < bestD) { bestD = d; best = pl; }
     }
     this.near = best;
+    this.nearT = app.player.inCar ? null : app.teachers?.nearest(p, 2.8);
     // 일과 장소에 2초 있으면 출석
     const ev = this.stats.current(app.sky.time);
     if (best && ev && !this.stats.isAttended(ev) && (PLACE_GROUPS[ev.place] || []).includes(best.key)) {
@@ -38,6 +42,7 @@ export class Interact {
   }
   // 안내줄: "E · 장소 — 할 일"
   prompt() {
+    if (this.nearT) return `${this.app.mobile ? 'E 버튼' : 'E'} · ${this.nearT.d.n} — 이야기하기`;
     const pl = this.near; if (!pl) return '';
     const st = this.quests.stepAt(pl.key);
     return `${this.app.mobile ? 'E 버튼' : 'E'} · ${pl.name}${st ? ` — 심부름: ${st.text}` : ''}`;
@@ -57,7 +62,21 @@ export class Interact {
       return !!opt.keep;
     } };
   }
-  buy(label, cost, fx, hours = 0, extra = {}) { return this.act(label, `${won(cost)}${extra.sub ? ' · ' + extra.sub : ''}`, fx, hours, { cost, msg: `${label} 샀어요`, disabled: !this.stats.canPay(cost), ...extra }); }
+  // 사기 — 음식은 가방에 들어가요(핫바에서 우클릭/놓기 버튼으로 먹기). extra.eat 이면 바로 먹기.
+  buy(label, cost, fx, hours = 0, extra = {}) {
+    const item = extra.item || FOOD_BY_NAME[label];
+    if (item && !extra.eat) {
+      const it = ITEMS[item], n = extra.n || 1;
+      return { label: `${it.icon} ${label}`, sub: `${won(cost)} · 가방에 넣기${extra.sub ? ' · ' + extra.sub : ''}`, disabled: !this.stats.canPay(cost), run: () => {
+        const inv = this.app.inv;
+        if (inv.isFull && inv.count(item) % 64 === 0) { this.app.hud.tip('가방이 가득 찼어요 — 가방(I)에서 정리해요'); return false; }
+        this.stats.apply({ coins: -cost }); inv.add(item, n);
+        this.app.hud.tip(`${it.n} ${n}개 샀어요 — 가방에 넣었어요 · ${this.app.mobile ? '핫바에 두고 놓기 버튼' : '핫바에 두고 우클릭'}으로 먹어요`, 5); this.app.hud.refreshStats(); return false;
+      } };
+    }
+    return this.act(label, `${won(cost)}${extra.sub ? ' · ' + extra.sub : ''}`, fx, hours, { cost, msg: `${label} 샀어요`, disabled: !this.stats.canPay(cost), ...extra });
+  }
+  eatOpt() { const n = this.app.inv.slots.filter((s) => s && ITEMS[s.id]?.kind === 'food').length; return { label: '🍴 가방 열기 (음식 먹기 · 제작)', sub: n ? `음식 ${n}칸 있어요` : '음식이 없어요', run: () => { this.app.dialog.close(); this.app.menu.toggle(true, 'bag'); return true; } }; }
   onceToday(key, label, sub, fx, hours, extra = {}) { const done = this.stats.didToday(key); return this.act(label, done ? '오늘은 이미 했어요' : sub, fx, hours, { once: key, disabled: done, ...extra }); }
   questOpt(pl) {
     const st = this.quests.stepAt(pl.key); if (!st) return null;
@@ -113,10 +132,10 @@ export class Interact {
       case 'cafeteria': {
         const meal = this.isMeal();
         o.push(this.act(meal ? '급식 먹기 (무료)' : '급식 먹기', meal ? '배부름 +45 · 에너지 +8' : '식사 시간이 아니라 간식만 돼요', { hunger: 45, energy: 8, stress: -3 }, 0.5, { disabled: !meal, accent: meal, ctx: { eating: true }, msg: '급식 먹었어요' }));
-        o.push(this.buy('카페 가이아 아메리카노', 1500, { energy: 12, stress: -6 }), this.buy('카페 가이아 생과일 주스', 2500, { energy: 8, hunger: 10, stress: -8 }), this.buy('간식 (빵·우유)', 1000, { hunger: 20 }), this.act('정수기 물 마시기', '무료 · 스트레스 −1', { stress: -1, hunger: 2 }, 0));
+        o.push(this.buy('카페 가이아 아메리카노', 1500, { energy: 12, stress: -6 }, 0, { eat: true }), this.buy('카페 가이아 생과일 주스', 2500, { energy: 8, hunger: 10, stress: -8 }, 0, { eat: true }), this.buy('간식 (빵·우유)', 1000, { hunger: 20 }, 0, { eat: true }), this.act('정수기 물 마시기', '무료 · 스트레스 −1', { stress: -1, hunger: 2 }, 0), this.eatOpt());
         break;
       }
-      case 'store': o.push(this.buy('빵', 1000, { hunger: 20 }), this.buy('컵라면', 1500, { hunger: 35 }, 0.3), this.buy('음료수', 800, { energy: 8, stress: -2 }), this.buy('학용품 세트', 2000, { grade: 1 }), { label: '블록 묶음 (돌·판자·벽돌 10개씩)', sub: '1,500원 · 짓기 재료', disabled: !s.canPay(1500), run: () => { s.apply({ coins: -1500 }); this.app.builder.add(B.STONE, 10); this.app.builder.add(B.PLANKS, 10); this.app.builder.add(B.BRICK, 10); this.app.hud.tip('블록 30개를 샀어요 — X 로 짓기'); this.app.hud.refreshStats(); return false; } }); break;
+      case 'store': o.push(this.buy('빵', 1000, { hunger: 20 }), this.buy('컵라면', 1500, { hunger: 35 }, 0.3), this.buy('음료수', 800, { energy: 8, stress: -2 }), this.buy('학용품 세트', 2000, { grade: 1 }), { label: '블록 묶음 (돌·판자·벽돌 10개씩)', sub: '1,500원 · 짓기 재료', disabled: !s.canPay(1500), run: () => { s.apply({ coins: -1500 }); this.app.builder.add(B.STONE, 10); this.app.builder.add(B.PLANKS, 10); this.app.builder.add(B.BRICK, 10); this.app.hud.tip('블록 30개를 샀어요 — X 로 짓기'); this.app.hud.refreshStats(); return false; } }); o.push(this.eatOpt()); break;
       case 'lobby': case 'board': o.push(...this.questBoard(), { label: '오늘 일과 보기', sub: '', run: () => { this.app.dialog.show({ title: '오늘 일과', lines: this.scheduleLines(), options: [] }); return true; } }); break;
       case 'office': o.push(...this.questBoard(), { label: '출석 확인', sub: `지금까지 ${s.attendCount}번 출석 · 결석 ${s.missed}번`, run: () => false }, this.act('선생님께 인사', '스트레스 −2', { stress: -2 }, 0)); break;
       case 'lab': case 'lab2': case 'workshop': {
@@ -156,16 +175,16 @@ export class Interact {
       case 'hill': o.push(this.act('경치 보기', '스트레스 −12', { stress: -12 }, 0.25), this.act('심호흡 (5분)', '에너지 +3', { energy: 3 }, 0.08)); break;
       case 'karaoke': o.push(this.buy('노래 부르기 (1시간)', 2000, { stress: -22, energy: -5 }, 1, { sub: '스트레스 −22' })); break;
       case 'bus': o.push(...this.busOptions(pl)); break;
-      case 'bunsik': o.push(this.buy('떡볶이', 3000, { hunger: 35, stress: -4 }, 0.3), this.buy('김밥', 2500, { hunger: 30 }, 0.2), this.buy('라면', 3000, { hunger: 35, energy: 3 }, 0.3)); break;
-      case 'conv': o.push(this.buy('삼각김밥', 1200, { hunger: 18 }), this.buy('컵라면', 1500, { hunger: 25 }, 0.2), this.buy('에너지 음료', 2000, { energy: 15, stress: 2 }), this.buy('우유', 1000, { hunger: 8, energy: 3 })); break;
+      case 'bunsik': o.push(this.buy('떡볶이', 3000, { hunger: 35, stress: -4 }, 0.3), this.buy('김밥', 2500, { hunger: 30 }, 0.2), this.buy('라면', 3000, { hunger: 35, energy: 3 }, 0.3, { eat: true })); o.push(this.eatOpt()); break;
+      case 'conv': o.push(this.buy('삼각김밥', 1200, { hunger: 18 }), this.buy('컵라면', 1500, { hunger: 25 }, 0.2), this.buy('에너지 음료', 2000, { energy: 15, stress: 2 }), this.buy('우유', 1000, { hunger: 8, energy: 3 })); o.push(this.eatOpt()); break;
       case 'stationery': o.push({ label: '블록 묶음 (돌·판자·벽돌·유리 10개씩)', sub: '2,000원 · 짓기 재료', disabled: !s.canPay(2000), run: () => { s.apply({ coins: -2000 }); for (const id of [B.STONE, B.PLANKS, B.BRICK, B.WINDOW]) this.app.builder.add(id, 10); this.app.hud.tip('블록 40개를 샀어요 — X 로 짓기'); this.app.hud.refreshStats(); return false; } }, this.buy('학용품 세트', 2000, { grade: 1 }), this.buy('편지지', 1000, { stress: -1 })); break;
       case 'academy': o.push(this.buy('보충 수업 (2시간)', 10000, { grade: 7, energy: -10, stress: 5 }, 2, { sub: '성적 +7', ctx: { studying: true } }), this.buy('1:1 질문 (30분)', 4000, { grade: 3, stress: 1 }, 0.5)); break;
       case 'pc': o.push(this.buy('게임 1시간', 1000, { stress: -15, energy: -3, grade: -0.5 }, 1, { sub: '스트레스 −15' }), this.buy('게임 3시간', 3000, { stress: -30, energy: -8, grade: -2 }, 3, { sub: '스트레스 −30 · 성적 −2' })); break;
-      case 'cafe': o.push(this.buy('커피', 2500, { energy: 12, stress: -5 }), this.buy('조각 케이크', 4000, { hunger: 15, stress: -8 }), this.act('창가에서 쉬기 (30분)', '스트레스 −4', { stress: -4 }, 0.5)); break;
-      case 'chicken': o.push(this.buy('치킨 한 마리', 18000, { hunger: 60, stress: -15 }, 0.7), this.buy('치킨 반 마리', 10000, { hunger: 35, stress: -8 }, 0.5)); break;
-      case 'bakery': o.push(this.buy('소금빵', 2000, { hunger: 20 }), this.buy('식빵 한 봉지', 3500, { hunger: 40 })); break;
+      case 'cafe': o.push(this.buy('커피', 2500, { energy: 12, stress: -5 }), this.buy('조각 케이크', 4000, { hunger: 15, stress: -8 }), this.act('창가에서 쉬기 (30분)', '스트레스 −4', { stress: -4 }, 0.5)); o.push(this.eatOpt()); break;
+      case 'chicken': o.push(this.buy('치킨 한 마리', 18000, { hunger: 60, stress: -15 }, 0.7, { item: 'chicken' }), this.buy('치킨 반 마리', 10000, { hunger: 35, stress: -8 }, 0.5)); break;
+      case 'bakery': o.push(this.buy('소금빵', 2000, { hunger: 20 }), this.buy('식빵 한 봉지', 3500, { hunger: 40 }, 0, { item: 'bread', n: 4, sub: '빵 4개' })); o.push(this.eatOpt()); break;
       case 'pharmacy': o.push(this.buy('피로회복제', 3000, { energy: 20 }), this.buy('밴드', 2000, { fitness: 1 })); break;
-      case 'minimart': case 'mart': o.push(this.buy('과자', 1500, { hunger: 15, stress: -2 }), this.buy('도시락', 4500, { hunger: 45 }, 0.3), this.buy('생수', 800, { hunger: 2, stress: -1 })); break;
+      case 'minimart': case 'mart': o.push(this.buy('과자', 1500, { hunger: 15, stress: -2 }), this.buy('도시락', 4500, { hunger: 45 }, 0.3), this.buy('생수', 800, { hunger: 2, stress: -1 })); o.push(this.eatOpt()); break;
       case 'fuel': { const c = this.app.car; o.push({ label: '주유하기', sub: `5,000원 · 연료 ${Math.round(c.fuel)}% → 100%`, disabled: !s.canPay(5000) || c.fuel > 95, accent: c.fuel < 30, run: () => { s.apply({ coins: -5000 }); c.fuel = 100; this.app.hud.tip('기름을 가득 넣었어요'); this.app.hud.refreshStats(); return false; } }); break; }
       case 'aptplay': o.push(this.act('그네 타기 (20분)', '스트레스 −6', { stress: -6 }, 0.33)); break;
       default: if (pl.key.startsWith('apt')) o.push(this.act('친구네 집 놀러 가기 (1시간)', '스트레스 −8', { stress: -8 }, 1)); break;
@@ -180,6 +199,7 @@ export class Interact {
     } }));
   }
   open() {
+    if (this.nearT) { this.app.teachers.talk(this.nearT); return true; }
     const pl = this.near; if (!pl) return false;
     const opts = this.options(pl); if (!opts.length) return false;
     const ev = this.stats.current(this.app.sky.time);

@@ -16,7 +16,7 @@ export class FollowCamera {
     const sens = 0.0022;
     this.yaw -= inp.look.dx * sens; this.pitch += inp.look.dy * sens;
     this.pitch = Math.max(-0.6, Math.min(1.3, this.pitch));
-    if (inp.wheel) { this.targetDist = Math.max(0.0, Math.min(10, this.targetDist + inp.wheel * 0.7)); }
+    if (inp.wheel && !this.noWheel) { this.targetDist = Math.max(0.0, Math.min(10, this.targetDist + inp.wheel * 0.7)); }
     if (inp.consume('camera')) this.targetDist = this.targetDist < 1 ? 4.6 : 0;
     // 차 안: 뒤에서 멀리
     const inCar = !!this.car && this.player.inCar;

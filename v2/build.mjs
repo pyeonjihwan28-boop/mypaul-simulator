@@ -11,12 +11,18 @@ await build({ ...common, entryPoints: ['src/world/worker.js'], outfile: 'dist/wo
 // 캐시 무효화를 위해 index.html 의 ?v= 을 빌드 시각으로
 const stamp = Date.now().toString(36);
 let html = readFileSync('src/index.html', 'utf8').replaceAll('__BUILD__', stamp);
+// 휴대폰: 화면 크기 그대로(확대 없이) — 아티팩트 판도 함께
+const VIEWPORT = '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">';
+html = html.replace('<link rel="preconnect" href="https://fonts.googleapis.com">', VIEWPORT + '<link rel="preconnect" href="https://fonts.googleapis.com">');
 writeFileSync('dist/index.html', html);
 // 본판(베타 표시 없음) · 깃허브 판(설치형 웹앱: manifest + 서비스 워커)
 const mainHtml = html.replace('<title>마이폴학교 시뮬레이터 베타</title>', '<title>마이폴학교 시뮬레이터</title>').replace('<p>시뮬레이터 베타 · Babylon.js 새 엔진</p>', '<p>시뮬레이터 · Babylon.js 새 엔진</p>').replace('<span class="beta">시뮬레이터 β · Babylon</span>', '<span class="beta">시뮬레이터 · Babylon</span>');
 mkdirSync('dist/main', { recursive: true }); writeFileSync('dist/main/index.html', mainHtml);
 const ghHtml = mainHtml.replace('<link rel="preconnect" href="https://fonts.googleapis.com">', '<meta name="theme-color" content="#0b1120"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="preconnect" href="https://fonts.googleapis.com">')
   .replace('<script src="app.js?v=__BUILD__"></script>'.replace('__BUILD__', stamp), `<script src="app.js?v=${stamp}"></script>\n<script>if ('serviceWorker' in navigator && location.protocol === 'https:') { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {}); }</script>`);
-mkdirSync('dist/gh', { recursive: true }); writeFileSync('dist/gh/index.html', ghHtml);
+mkdirSync('dist/gh', { recursive: true }); writeFileSync('dist/gh/index.html', '<!doctype html><html lang="ko"><meta charset="utf-8">\n' + ghHtml);
+// 깃허브 판 version.json (전 판과 같은 모양: build · notes 한 줄)
+const ver = await import('./src/version.js');
+writeFileSync('dist/gh/version.json', JSON.stringify({ build: String(Date.now()), notes: ver.NOTES.join('\n') + ` — ${ver.VERSION}` }) + '\n');
 const kb = (f) => (statSync(f).size / 1024).toFixed(0) + 'KB';
 console.log(`app.js ${kb('dist/app.js')} · worker.js ${kb('dist/worker.js')} · index.html ${kb('dist/index.html')} · build ${stamp}`);

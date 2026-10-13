@@ -28,7 +28,7 @@ export class Dialog {
     $('dlgClose').textContent = spec.closeLabel || '닫기';
   }
   _pick(o) { const keep = o.run && o.run(); if (!keep) this.close(); }
-  close() { if (!this.open) return; this.open = false; this.el.hidden = true; this.app.input.uiOpen = false; const cb = this.onClose; this.onClose = null; cb && cb(); }
+  close() { if (!this.open) return; this.open = false; this.el.hidden = true; this.app.input.uiOpen = !!this.app.menu?.open || !!this.app.hud?.settingsOpen || !!this.app.hud?.chatOpen; const cb = this.onClose; this.onClose = null; cb && cb(); }
   // 퀴즈: questions [{q, a[], c, s}] → onDone(correct, total)
   quiz(title, questions, onDone) {
     let i = 0, ok = 0;
