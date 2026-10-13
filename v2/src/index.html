@@ -1,0 +1,247 @@
+<title>마이폴학교 시뮬레이터 베타</title>
+<!--
+  마이폴학교 시뮬레이터 베타 — Babylon.js 판 (새로 만드는 중)
+  엔진: Babylon.js 9.28 (Apache-2.0) · 글꼴: Bagel Fat One · IBM Plex Sans KR (Google Fonts, OFL)
+  텍스처는 전부 코드로 만든 절차적 PBR 텍스처 · 세계는 복셀(블록) · 메시는 워커에서 생성
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Black+Han+Sans&display=swap">
+<style>
+/* 레이아웃: 전체 화면 캔버스 위에 반투명 남색 판(HUD). 노랑 하나만 강조색. */
+:root{--f-disp:"Bagel Fat One","IBM Plex Sans KR",system-ui,sans-serif;--f-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+--panel:rgba(11,17,32,.78);--panel2:rgba(22,30,46,.9);--line:rgba(255,255,255,.12);--fg:#fff;--muted:rgba(255,255,255,.62);--acc:#f5c542;--bg:#0b1120;--r:12px;color-scheme:dark}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-ui);overflow:hidden;-webkit-text-size-adjust:100%}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+.panel{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--fg);padding:8px 12px;font-size:13px;line-height:1.35}
+#hud{pointer-events:none}
+#hud .panel{pointer-events:auto}
+#title{left:12px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:10px;align-items:center}
+#title b{font-family:var(--f-disp);font-weight:400;font-size:20px;letter-spacing:.5px;color:var(--acc);text-shadow:0 2px 0 rgba(0,0,0,.35)}
+#title .beta{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:1px 6px}
+#place{left:12px;top:calc(62px + env(safe-area-inset-top,0px));font-weight:600;font-size:14px}
+#place small{display:block;color:var(--muted);font-weight:400;font-size:11px;margin-top:2px}
+#stats{right:12px;top:calc(12px + env(safe-area-inset-top,0px));text-align:right;font-variant-numeric:tabular-nums}
+#stats .t{font-family:var(--f-disp);font-size:22px;color:var(--fg);font-weight:400}
+#stats .q{color:var(--muted);font-size:11px}
+#tip{left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(92vw,560px);text-align:center;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hotbar{left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:6px;padding:6px}
+#hotbar .slot{width:44px;height:44px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid var(--line);display:grid;place-items:center;font-size:22px;position:relative}
+#hotbar .slot.on{border-color:var(--acc);box-shadow:0 0 0 2px rgba(245,197,66,.45) inset}
+#hotbar .slot i{position:absolute;left:4px;top:2px;font-size:9px;color:var(--muted);font-style:normal}
+#hotbar .slot em{position:absolute;right:3px;bottom:1px;font-size:10px;font-style:normal;font-weight:700;color:var(--fg);text-shadow:0 1px 2px #000}#hotbar .slot.empty{opacity:.45}
+#cross{position:fixed;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%);pointer-events:none;opacity:.8}
+#cross:before,#cross:after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
+#cross:before{left:6px;top:0;width:2px;height:14px}#cross:after{top:6px;left:0;height:2px;width:14px}
+button.btn{font:inherit;font-size:13px;font-weight:600;color:var(--fg);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer}
+button.btn:hover{background:rgba(255,255,255,.14)}button.btn.acc{background:var(--acc);color:#1a1a1a;border-color:transparent}
+button.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#menu{right:12px;top:calc(72px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px;padding:8px}
+#settings{right:12px;top:calc(72px + env(safe-area-inset-top,0px));z-index:8;width:min(92vw,320px);max-height:calc(100vh - 120px);overflow:auto;padding:12px 14px}
+#settings h3{margin:0 0 8px;font-size:14px;font-family:var(--f-disp);font-weight:400;color:var(--acc)}
+#settings .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+#settings .row:first-of-type{border-top:0}
+#settings select,#settings input[type=range]{font:inherit;color:var(--fg);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;padding:4px 6px}
+#settings input[type=range]{width:130px;padding:0}
+#settings .help{color:var(--muted);font-size:12px;line-height:1.5;margin-top:8px}
+#settings kbd{font:inherit;font-size:11px;background:rgba(255,255,255,.12);border-radius:5px;padding:1px 5px}
+/* 휴대폰 조작 */
+#touch{position:fixed;inset:0;pointer-events:none}
+#stick{position:absolute;left:28px;bottom:calc(28px + env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;background:rgba(11,17,32,.45);border:1px solid var(--line);pointer-events:auto;touch-action:none}
+#stick .knob{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.5)}
+#tbtns{position:absolute;right:16px;bottom:calc(24px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(2,60px);gap:8px;pointer-events:auto}
+#tbtns button{width:60px;height:60px;border-radius:50%;background:rgba(11,17,32,.6);border:1px solid var(--line);color:#fff;font:inherit;font-size:12px;font-weight:700;touch-action:none;-webkit-user-select:none;user-select:none}
+#tbtns button.on{background:rgba(245,197,66,.85);color:#1a1a1a}
+#look{position:absolute;right:0;top:0;width:55%;height:70%;pointer-events:auto;touch-action:none}
+/* 로딩 */
+#load{position:fixed;inset:0;background:radial-gradient(120% 90% at 50% 10%,#17345a 0%,#0b1120 60%,#070b14 100%);display:grid;place-items:center;z-index:10;color:#fff;text-align:center;padding:16px}
+#load h1{font-family:var(--f-disp);font-weight:400;font-size:clamp(34px,8vw,64px);margin:0 0 4px;color:var(--acc);text-shadow:0 4px 0 rgba(0,0,0,.35)}
+#load p{margin:0;color:var(--muted);font-size:14px}
+#load .bar{width:min(80vw,420px);height:10px;border-radius:6px;background:rgba(255,255,255,.1);margin:22px auto 10px;overflow:hidden}
+#load .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5c542,#ffe08a);border-radius:6px;transition:width .25s}
+#load .step{font-size:13px;color:#fff;min-height:1.4em}
+#load .note{margin-top:28px;font-size:12px;color:var(--muted);line-height:1.6}
+#load button{margin-top:20px;font-size:17px;padding:12px 28px;border-radius:14px}
+#load .sub{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+#load .sub button{font-size:13px;padding:7px 12px;margin:0}
+/* 상태 · 일과 · 안내줄 · 대화창 */
+#status{left:12px;top:calc(134px + env(safe-area-inset-top,0px));width:168px;padding:8px 10px;font-size:12px}
+#status .row{display:grid;grid-template-columns:16px 1fr 34px;align-items:center;gap:6px;margin:3px 0}
+#status .bar{height:7px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+#status .bar i{display:block;height:100%;border-radius:4px;background:var(--acc);transition:width .3s}
+#status .bar.low i{background:#ff6b6b}
+#status .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#status .money{display:flex;justify-content:space-between;margin-top:5px;padding-top:5px;border-top:1px solid var(--line);font-weight:600}
+#status .money b{color:var(--acc);font-weight:600}
+#status .quest{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);color:var(--muted);line-height:1.35}
+#status .quest b{color:var(--fg);font-weight:600}
+#sched{left:12px;top:calc(102px + env(safe-area-inset-top,0px));font-size:12px;padding:5px 10px;color:var(--muted);max-width:min(60vw,420px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sched b{color:var(--fg);font-weight:600}#sched .ok{color:var(--acc)}
+#day{font-size:11px;color:var(--muted)}
+#prompt{left:50%;bottom:calc(124px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:13px;font-weight:600;padding:7px 14px;white-space:nowrap}
+#prompt kbd{font:inherit;font-size:11px;background:var(--acc);color:#1a1a1a;border-radius:6px;padding:1px 7px;margin-right:6px}
+#dlg{left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,440px);max-height:min(84vh,620px);overflow:auto;background:var(--panel2);padding:14px 16px;z-index:5}
+#dlg h3{margin:0;font-family:var(--f-disp);font-weight:400;font-size:19px;color:var(--acc)}
+#dlg .sub{color:var(--muted);font-size:12px;margin:3px 0 8px}
+#dlg .body p{margin:4px 0;font-size:13px;line-height:1.45}
+#dlg .opts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+#dlg button.opt{display:flex;align-items:center;gap:10px;text-align:left;font:inherit;font-size:13px;color:var(--fg);background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer}
+#dlg button.opt:hover{background:rgba(255,255,255,.13)}#dlg button.opt.acc{border-color:var(--acc)}
+#dlg button.opt.off{opacity:.45;cursor:default}
+#dlg button.opt i{flex:0 0 20px;height:20px;border-radius:6px;background:rgba(255,255,255,.12);font-style:normal;font-size:11px;display:grid;place-items:center;color:var(--muted)}
+#dlg button.opt span{display:flex;flex-direction:column;gap:1px;font-weight:600}
+#dlg button.opt small{color:var(--muted);font-weight:400;font-size:11.5px}
+#dlg .foot{display:flex;justify-content:flex-end;margin-top:10px}
+#chat{left:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(46vw,380px);padding:6px 10px;font-size:12.5px;background:rgba(11,17,32,.55)}
+#chat .co{color:#7ee0a0;font-size:11px;margin-bottom:2px}
+#chat .line{line-height:1.45;transition:opacity .8s}#chat .line.old{opacity:.35}#chat .line.me b{color:#ffe08a}
+#chat .line i{font-style:normal;font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 4px;margin-right:5px}
+#chat .line b{color:var(--acc);font-weight:600;margin-right:5px}
+#chat .cin{display:flex;gap:6px;margin-top:6px}
+#chat input{flex:1;min-width:0;font:inherit;font-size:13px;color:var(--fg);background:rgba(255,255,255,.1);border:1px solid var(--acc);border-radius:8px;padding:6px 8px}
+#lvl{font-size:11px;color:var(--acc)}
+#weap{right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:170px;padding:7px 10px;font-size:12px}
+#weap b{display:block;font-size:13px}#weap small{color:var(--muted)}
+#weap .cdbar{height:5px;border-radius:3px;background:rgba(255,255,255,.12);margin:4px 0;overflow:hidden}#weap .cdbar i{display:block;height:100%;background:var(--acc)}
+#menuPanel{left:50%;top:50%;transform:translate(-50%,-50%);width:min(96vw,760px);max-height:min(90vh,760px);display:flex;flex-direction:column;background:var(--panel2);padding:10px 12px;z-index:5}
+#menuPanel .mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+#menuTabs{display:flex;gap:6px;flex-wrap:wrap}#menuTabs .mt.on{background:var(--acc);color:#1a1a1a;border-color:transparent}
+#menuBody{overflow:auto;flex:1;font-size:12.5px}
+#menuBody h4{margin:12px 0 6px;font-size:13px;color:var(--acc);font-weight:600}
+#menuBody .card{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+#menuBody .card.on{border-color:var(--acc)}
+#menuBody .row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+#menuBody .row.gi{padding:5px 0;border-top:1px solid var(--line)}#menuBody .row.gi:first-child{border-top:0}
+#menuBody .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+#menuBody .card.st small{display:block;color:var(--muted);margin:3px 0 6px}
+#menuBody small{color:var(--muted)}#menuBody .acc{color:var(--acc)}
+#menuBody .btns{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+#menuBody .btn.mini{font-size:11.5px;padding:4px 8px;border-radius:8px}#menuBody .btn.mini:disabled{opacity:.4;cursor:default}
+#menuBody .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}#menuBody .chip{background:rgba(255,255,255,.08);border-radius:8px;padding:3px 7px;font-size:12px}
+#menuBody .xp{height:7px;border-radius:4px;background:rgba(255,255,255,.12);margin:6px 0;overflow:hidden}#menuBody .xp i{display:block;height:100%;background:linear-gradient(90deg,#f5c542,#ffe08a)}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s;z-index:4}
+#fade.on{opacity:1}
+/* 첫 화면 */
+#start{position:fixed;inset:0;z-index:6;pointer-events:none;font-family:var(--f-ui)}
+#start>*{pointer-events:auto}
+#start .tl{position:absolute;left:28px;top:calc(22px + env(safe-area-inset-top,0px));max-width:min(52vw,560px)}
+#start .logo{position:relative;display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px}
+#start h1{font-family:var(--f-disp);font-weight:400;font-size:clamp(44px,7vw,84px);line-height:1;margin:0;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.4)}
+#start .badge{font-family:var(--f-disp);font-size:clamp(15px,1.8vw,22px);color:#fff;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 14px}
+#start .sticker{position:absolute;right:-16px;top:-10px;transform:rotate(-8deg);background:var(--acc);color:#1a1a1a;font-weight:700;font-size:12px;border-radius:6px;padding:4px 9px;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+#start .tag{margin:12px 0 10px;font-size:clamp(13px,1.4vw,16px);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#start .tag b{color:var(--acc);font-weight:600}
+#start .gfx{position:static;display:flex;gap:10px;align-items:center;justify-content:space-between;max-width:460px;padding:10px 12px}
+#start .gfx small{display:block;color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.4}
+#start .gfx .gb{display:flex;gap:6px;flex:0 0 auto}
+#start .chat{right:28px;top:calc(22px + env(safe-area-inset-top,0px));width:min(34vw,360px);height:min(34vh,250px);display:flex;flex-direction:column;padding:10px 12px}
+#start .chat .ch{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+#start .chat .ch span{color:#7ee0a0;font-size:11px}
+#start .chat .cl{flex:1;overflow:auto;font-size:12.5px;line-height:1.5}
+#start .chat .cl .muted{color:var(--muted)}
+#start .chat .cl b{color:var(--acc);font-weight:600;margin-right:4px}
+#start .chat .ci{display:flex;gap:6px;margin-top:6px}
+#start .chat input{flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--fg);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+#start .bl{position:absolute;left:28px;bottom:calc(22px + env(safe-area-inset-bottom,0px));font-size:12.5px;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+#start .mode{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#start .mode button.on{background:var(--acc);color:#1a1a1a;border-color:transparent}
+#start .hint{color:var(--muted);margin:8px 0 10px}
+#start .small{display:flex;gap:8px;flex-wrap:wrap}
+#start .ver{margin-top:12px;font-size:11px;color:var(--muted)}
+#start .br{position:absolute;right:28px;bottom:calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;width:min(40vw,420px);align-items:stretch}
+#start .pill{align-self:flex-end;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;color:#7ee0a0;margin-bottom:6px}
+#start button.big{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 18px;cursor:pointer;text-align:center;backdrop-filter:blur(8px)}
+#start button.big b{display:block;font-family:var(--f-disp);font-weight:400;font-size:clamp(22px,2.6vw,30px)}
+#start button.big small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+#start button.big.acc{background:var(--acc);color:#1a1a1a;border-color:transparent}#start button.big.acc small{color:rgba(0,0,0,.6)}
+#start button.big:hover{filter:brightness(1.08)}
+#start .name{left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,430px);background:var(--panel2);padding:22px 20px;text-align:center;display:flex;flex-direction:column;gap:10px;z-index:7}
+#start .name .av{font-size:34px}#start .name h3{margin:0;font-size:18px;font-weight:600}#start .name p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+#start .name input{font:inherit;font-size:16px;text-align:center;color:var(--fg);background:rgba(255,255,255,.08);border:2px solid var(--acc);border-radius:10px;padding:10px}
+#start .name button{font-size:15px;padding:10px}#start .name button:disabled{opacity:.4;cursor:default}
+#start.dim::before{content:"";position:fixed;inset:0;background:rgba(0,0,0,.55)}
+[hidden]{display:none!important}
+@media (max-width:640px){#tip{font-size:12px;bottom:calc(120px + env(safe-area-inset-bottom,0px))}#status{width:140px;top:calc(126px + env(safe-area-inset-top,0px));font-size:11px;padding:6px 8px}#status .row{grid-template-columns:14px 1fr 28px;margin:2px 0}#sched{top:calc(96px + env(safe-area-inset-top,0px));max-width:52vw;font-size:11px}#prompt{bottom:calc(156px + env(safe-area-inset-bottom,0px));font-size:12px}#hotbar{bottom:calc(150px + env(safe-area-inset-bottom,0px));gap:4px}#hotbar .slot{width:36px;height:36px;font-size:18px}#settings{width:min(94vw,320px)}#title b{font-size:17px}
+#start .tl{left:14px;right:14px;max-width:none;top:calc(14px + env(safe-area-inset-top,0px));text-align:center}#start .logo{align-items:center}#start .sticker{right:-18px;top:-8px}#start .gfx{display:none}#start .tag{font-size:12px}
+#start .chat{left:14px;right:14px;width:auto;top:calc(150px + env(safe-area-inset-top,0px));height:140px}
+#start .bl{left:14px;right:14px;bottom:calc(236px + env(safe-area-inset-bottom,0px));text-align:center}#start .mode,#start .small{justify-content:center}#start .ver{position:fixed;left:0;right:0;bottom:calc(6px + env(safe-area-inset-bottom,0px));text-align:center}
+#weap{right:16px;bottom:calc(236px + env(safe-area-inset-bottom,0px));width:150px}#tbtns{grid-template-columns:repeat(3,56px);gap:6px}#tbtns button{width:56px;height:56px;font-size:11px}#menu{top:calc(72px + env(safe-area-inset-top,0px))}#menu .btn{font-size:11px;padding:5px 8px}
+#start .br{left:14px;right:14px;width:auto;bottom:calc(30px + env(safe-area-inset-bottom,0px));gap:8px}#chat{left:12px;bottom:calc(160px + env(safe-area-inset-bottom,0px));width:min(70vw,300px);font-size:11.5px}#start .pill{align-self:center;margin-bottom:0}#start button.big{padding:10px 14px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<canvas id="game" tabindex="0"></canvas>
+<div id="load">
+  <div>
+    <h1>마이폴학교</h1>
+    <p>시뮬레이터 베타 · Babylon.js 새 엔진</p>
+    <div class="bar"><i id="loadBar"></i></div>
+    <div class="step" id="loadStep">엔진 켜는 중</div>
+    <div class="note" id="loadNote"></div>
+    <button class="btn" id="loadRetry" hidden>다시 시도</button>
+  </div>
+</div>
+<!-- 첫 화면 (전 판 구성: 제목 · 그래픽 추천 · 플레이 방식 · 서버/설정/조작법 · 채팅 · 혼자/같이/이어 하기) -->
+<div id="start" hidden>
+  <div class="tl">
+    <div class="logo"><h1>마이폴학교</h1><span class="badge">시뮬레이터</span><span class="sticker">학교를 부숴라!</span></div>
+    <p class="tag">학교를 <b>탐험</b>하고, 보스와 <b>싸우고</b>, 친구와 <b>함께</b> 노는 <b>3D</b> 학교 게임</p>
+    <div class="panel gfx"><div class="gt"><b>이 기기 추천 그래픽: <span id="sGfxTier"></span></b><small id="sGfxNote"></small></div><div class="gb"><button class="btn acc" id="sGfxRec">추천대로</button><button class="btn" id="sGfxHi">더 선명하게</button></div></div>
+  </div>
+  <div class="panel chat" id="sChat">
+    <div class="ch"><b>전체 채팅</b><span id="sChatN">연결 중…</span></div>
+    <div class="cl" id="sChatList"><div class="muted">아직 채팅이 없어요. 먼저 인사해 보세요!</div></div>
+    <div class="ci"><button class="btn" id="sName">이름</button><input id="sChatIn" maxlength="120" placeholder="모두에게 보내기 (Enter)" autocomplete="off"><button class="btn" id="sChatSend">보내기</button></div>
+  </div>
+  <div class="bl">
+    <div class="mode"><span>플레이 방식</span><button class="btn" data-mode="battle">⚔️ 전투 중심</button><button class="btn" data-mode="chill">🌿 편안한 탐험</button></div>
+    <div class="hint" id="sModeHint"></div>
+    <div class="small"><button class="btn" id="sServers">서버 고르기</button><button class="btn" id="sSettings">설정</button><button class="btn" id="sHelp">조작법</button><button class="btn" id="sInstall" hidden>📲 앱으로 설치</button></div>
+    <div class="ver" id="sVer"></div>
+  </div>
+  <div class="br">
+    <div class="pill" id="sOnline">● 접속 확인 중</div>
+    <button class="big acc" id="sSolo"><b>혼자 하기</b><small>오프라인 · 나만의 학교</small></button>
+    <button class="big" id="sMulti"><b>같이 하기</b><small>서버 자동 접속 · 최대 10명</small></button>
+    <button class="big" id="sContinue" hidden><b>이어 하기</b><small id="sContinueSub"></small></button>
+  </div>
+  <div class="panel name" id="sNameDlg" hidden>
+    <div class="av">🧑‍🎓</div><h3>이름을 정해 주세요</h3><p>같이 하기 · 채팅 · 보스전에서 친구들에게 보이는 이름이에요. 최대 12글자, 나중에 첫 화면 채팅창에서 바꿀 수 있어요.</p>
+    <input id="sNameIn" maxlength="12" placeholder="이름 입력" autocomplete="off"><button class="btn acc" id="sNameOk" disabled>시작하기</button>
+  </div>
+</div>
+<div class="panel" id="settings" hidden>
+    <h3>설정</h3>
+    <div class="row"><span>화질</span><select id="selQuality"><option value="low">낮음</option><option value="mid">중간</option><option value="high">높음</option><option value="ultra">최고</option></select></div>
+    <div class="row"><span>해상도 자동</span><input type="checkbox" id="chkDyn" checked></div>
+    <div class="row"><span>시간</span><input type="range" id="rngTime" min="0" max="24" step="0.05"></div>
+    <div class="row"><span>시간 흐름</span><select id="selFlow"><option value="0">멈춤</option><option value="1" selected>보통(1분=1시간)</option><option value="4">빠름</option></select></div>
+    <div class="row"><span>시야</span><input type="range" id="rngFov" min="50" max="100" step="1" value="72"></div>
+    <div class="row"><span>성능 표시</span><input type="checkbox" id="chkStats" checked></div>
+    <div class="help" id="helpText"><b>조작</b><br><kbd>W A S D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · <kbd>Space</kbd> 점프 · 마우스 시점 · 휠 줌<br><kbd>E</kbd> 차 타기/내리기 · <kbd>X</kbd> 짓기 모드 · 좌클릭 캐기 · 우클릭 놓기 · <kbd>1~9</kbd> 블록 · <kbd>V</kbd> 반블록 모양<br><kbd>T</kbd> 시간 빨리 · <kbd>Esc</kbd> 마우스 풀기<br><kbd>E</kbd> 장소에서 할 일(먹기·수업·운동·심부름·자기) · 일과 시간에 그 장소에 있으면 자동 출석</div>
+  </div>
+<div id="hud" hidden>
+  <div class="panel" id="title"><b>마이폴학교</b><span class="beta">시뮬레이터 β · Babylon</span></div>
+  <div class="panel" id="place">학교 안<small id="placeSub"></small></div>
+  <div class="panel" id="sched"></div>
+  <div class="panel" id="status">
+    <div class="row"><span>🍚</span><div class="bar" id="bHunger"><i></i></div><span class="v" id="vHunger"></span></div>
+    <div class="row"><span>⚡</span><div class="bar" id="bEnergy"><i></i></div><span class="v" id="vEnergy"></span></div>
+    <div class="row"><span>😮‍💨</span><div class="bar" id="bStress"><i></i></div><span class="v" id="vStress"></span></div>
+    <div class="row"><span>📚</span><div class="bar" id="bGrade"><i></i></div><span class="v" id="vGrade"></span></div>
+    <div class="row"><span>💪</span><div class="bar" id="bFit"><i></i></div><span class="v" id="vFit"></span></div>
+    <div class="money"><span>용돈</span><b id="vCoins"></b></div>
+    <div class="quest" id="vQuest" hidden></div>
+  </div>
+  <div class="panel" id="stats"><div class="t" id="clock">09:30</div><div id="day"></div><div id="lvl"></div><div class="q" id="fps"></div></div>
+  <div class="panel" id="menu"><button class="btn" id="btnMenu">☰ 메뉴</button><button class="btn" id="btnBag">🎒 가방</button><button class="btn" id="btnWeapon">🔫 무기</button><button class="btn" id="btnBuild">🧱 짓기</button><button class="btn" id="btnCar">🚗 차</button><button class="btn" id="btnSettings">⚙ 설정</button></div>
+  <div class="panel" id="weap" hidden><b id="weapName"></b><div class="cdbar"><i id="weapCd"></i></div><small id="weapSub"></small></div>
+  <div class="panel" id="chat" hidden><div class="co" id="cOnline"></div><div id="cList"></div><div class="cin" id="cInWrap" hidden><input id="cIn" maxlength="120" placeholder="채팅 (Enter 보내기 · Esc 닫기)" autocomplete="off"><button class="btn" id="cSend">보내기</button></div></div>
+  <div class="panel" id="prompt" hidden></div>
+  <div class="panel" id="tip" hidden></div>
+  <div class="panel" id="dlg" hidden><h3 id="dlgTitle"></h3><div class="sub" id="dlgSub"></div><div class="body" id="dlgBody"></div><div class="opts" id="dlgOpts"></div><div class="foot"><button class="btn" id="dlgClose">닫기</button></div></div>
+  <div id="fade"></div>
+<div class="panel" id="menuPanel" hidden><div class="mh"><div id="menuTabs"></div><button class="btn" id="menuClose">닫기</button></div><div id="menuBody"></div></div>
+  <div class="panel" id="hotbar" hidden></div>
+  <div id="cross" hidden></div>
+  <div id="touch" hidden><div id="look"></div><div id="stick"><div class="knob"></div></div><div id="tbtns"><button id="tJump">점프</button><button id="tRun">달리기</button><button id="tAct">E</button><button id="tBreak">캐기</button><button id="tPlace">놓기</button><button id="tBuild">짓기</button><button id="tChat">채팅</button><button id="tMenu">메뉴</button><button id="tWeapon">무기</button><button id="tView">시점</button></div></div>
+</div>
+<script src="app.js?v=__BUILD__"></script>

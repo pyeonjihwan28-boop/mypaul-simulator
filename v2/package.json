@@ -1,0 +1,19 @@
+{
+  "name": "mypaul-babylon",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babylonjs/core": "^9.28.0",
+    "@babylonjs/materials": "^9.28.0",
+    "esbuild": "^0.25.10",
+    "trystero": "^0.26.0"
+  }
+}
