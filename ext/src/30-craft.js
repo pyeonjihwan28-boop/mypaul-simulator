@@ -1,5 +1,7 @@
 /* ───────────── 제작 · 화로 · 상자 ─────────────
-   손 제작(2×2)은 어디서나 · 작업대 가까이(4.5m)면 3×3 · 화로는 블록을 직접 열어요 */
+   제작은 어디서나 모든 레시피 (블록폰 🔨 제작 앱 · 가방 '제작 열기') · 굽기는 제작 창의 🔥 굽기 (휴대용 화로)
+   짓기가 없어져서(V119) 놓는 데만 쓰던 레시피(작업대 · 가구 · 장식 블록 · 레드스톤 · 도끼 · 삽 · 괭이 …)는 목록에서 숨겨요
+   예전에 놓아 둔 작업대 · 화로 · 상자는 가까이서 F로 그대로 써요 */
 
 const MP_PLANKS = ["oak_planks", "spruce_planks", "birch_planks", "dark_oak_planks"];
 const MP_LOGS = ["oak_log", "spruce_log", "birch_log", "jungle_log", "acacia_log", "dark_oak_log", "mangrove_log"];
@@ -82,6 +84,16 @@ F("iron_ingot", "raw_iron", 5); F("gold_ingot", "raw_gold", 5); F("copper_ingot"
 for (const l of MP_LOGS) F("charcoal", l, 4);
 F("green_dye", "cactus"); F("deepslate", "cobbled_deepslate"); F("nether_bricks", "netherrack"); F("terracotta", "clay_ball", 5);
 MP.recipes = MPR;
+// 짓기가 없어서 쓸 데 없는 결과물은 목록에서 숨겨요 (TNT는 한탕 도구라 남겨요)
+const CR_HIDE = new Set(["crafting_table", "furnace", "chest", "bookshelf", "red_bed", "redstone_lamp", "lever", "redstone_wire", "piston", "stone_pressure_plate", "redstone_torch", "torch_b", "shears",
+  "glass", "stone", "smooth_stone", "brick", "deepslate", "nether_bricks", "terracotta", "red_dye", "blue_dye", "black_dye", "yellow_dye", "green_dye"]);
+const crShown = r => {
+  const o = r.o[0], k = ji[o] && ji[o][2];
+  if (o === "tnt_b") return true;
+  if (CR_HIDE.has(o) || /_(wool|concrete|axe|shovel|hoe)$/.test(o)) return false;
+  return k !== "blk";
+};
+for (const r of MPR) if (r.o[0] === "tnt_b") r.cat = "도구";
 
 const MP_FUEL = { coal: 8, charcoal: 8, stick: .5, crafting_table: 1.5, bookshelf: 1.5 };
 for (const p of MP_PLANKS) MP_FUEL[p] = 1.5;
@@ -110,28 +122,25 @@ const mpFind = (bid, rad) => {
   return best;
 };
 
-const CR = (MP.craft = { tab: "can", at: "hand" });
+const CR = (MP.craft = { tab: "can" });
 CR.icon = id => { const bid = MPI.blockOf[id]; const ic = bid && MP.blockIcon(bid, 30); return ic ? `<img src="${ic}" alt="" style="width:30px;height:30px">` : mpIconOf(id); };
-CR.open = (at) => {
+CR.open = () => {
   if (c.bm || c.pvLock) return;
-  CR.at = at || (mpFind(MPS.table, 4) ? "table" : "hand");
+  if (CR.tab === "fur") CR.tab = "can";
   CR.render();
 };
 CR.render = () => {
-  const at = CR.at;
-  const ok = r => r.at === "hand" || (r.at === "table" && at === "table");
-  const L = MPR.filter(r => r.at !== "furnace").filter(r => CR.tab === "can" ? ok(r) && mpCanTimes(r) > 0 : CR.tab === "all" ? true : r.cat === CR.tab);
+  const L = MPR.filter(r => r.at !== "furnace" && crShown(r)).filter(r => CR.tab === "can" ? mpCanTimes(r) > 0 : CR.tab === "all" ? true : r.cat === CR.tab);
   const rows = L.map(r => {
-    const idx = MPR.indexOf(r), can = ok(r) ? mpCanTimes(r) : 0;
+    const idx = MPR.indexOf(r), can = mpCanTimes(r);
     const chips = r.i.map(([id, n]) => { const h = mpHaveG(id); return `<span class="mpchip ${h >= n ? "ok" : "no"}">${MPG[id] ? "" : mpIconOf(id) + " "}${ae(MPG_NAME[id] || mpNameOf(id))} ${h}/${n}</span>`; }).join(" ");
-    const where = r.at === "table" && at !== "table" ? `<span class="mpchip">🛠️ 작업대에서</span>` : "";
-    return `<div class="mprow"><span class="ic">${CR.icon(r.o[0])}</span><span class="tx"><b>${ae(mpNameOf(r.o[0]))}${r.o[1] > 1 ? " ×" + r.o[1] : ""}</b><span>${chips} ${where}</span></span><span class="bt"><button class="mpbtn pri" data-mp="cr:${idx}:1"${can ? "" : " disabled"}>만들기</button>${can > 1 ? `<button class="mpbtn" data-mp="cr:${idx}:${Math.min(can, 64)}">×${Math.min(can, 64)}</button>` : ""}</span></div>`;
+    return `<div class="mprow"><span class="ic">${CR.icon(r.o[0])}</span><span class="tx"><b>${ae(mpNameOf(r.o[0]))}${r.o[1] > 1 ? " ×" + r.o[1] : ""}</b><span>${chips}</span></span><span class="bt"><button class="mpbtn pri" data-mp="cr:${idx}:1"${can ? "" : " disabled"}>만들기</button>${can > 1 ? `<button class="mpbtn" data-mp="cr:${idx}:${Math.min(can, 64)}">×${Math.min(can, 64)}</button>` : ""}</span></div>`;
   }).join("") || `<div class="mpnote">${CR.tab === "can" ? "지금 가진 재료로 만들 수 있는 게 없어요. '전부'에서 무엇이 필요한지 봐요." : "없어요"}</div>`;
-  const tabs = [["can", "만들 수 있는 것"], ["블록", "블록"], ["도구", "도구"], ["재료", "재료"], ["all", "전부"]].map(([k, n]) => `<button class="${CR.tab === k ? "on" : ""}" data-mp="crtab:${k}">${n}</button>`).join("");
-  const head = at === "table" ? "🛠️ 작업대 (3×3)" : "✋ 손 제작 (2×2)";
-  Br(`<i data-view="mpcraft" hidden></i><h2>🔨 제작</h2><div class="mpnote"><b>${head}</b> · ${at === "table" ? "모든 레시피를 만들 수 있어요" : "작업대 가까이(4.5m) 가면 도구 · 화로 · 상자도 만들어요"} · 굽기는 화로를 직접 열어요</div><div class="mptabs">${tabs}</div><div class="mplist">${rows}</div>`, "mpcw");
+  const tabs = [["can", "만들 수 있는 것"], ["도구", "도구"], ["재료", "재료"], ["fur", "🔥 굽기"], ["all", "전부"]].map(([k, n]) => `<button class="${CR.tab === k ? "on" : ""}" data-mp="crtab:${k}">${n}</button>`).join("");
+  Br(`<i data-view="mpcraft" hidden></i><h2>🔨 제작</h2><div class="mpnote">어디서나 모든 레시피를 만들 수 있어요 · 원석 · 모래는 🔥 굽기에서 구워요</div><div class="mptabs">${tabs}</div><div class="mplist">${rows}</div>`, "mpcw");
 };
-MP.click.crtab = k => { CR.tab = k; CR.render(); };
+MP.click.crtab = k => { if (k === "fur") { FUR.open("bag"); return; } CR.tab = k; CR.render(); };
+MP.click.craft = () => CR.open();
 MP.click.cr = v => {
   const [idx, times] = v.split(":").map(Number), r = MPR[idx]; if (!r) return;
   let made = 0;
@@ -162,10 +171,10 @@ FUR.useFuel = need => {
   for (const [k, v] of order) while (units < need && mpHave(k) > 0) { mpTake(k, 1); units += v; }
   return units >= need;
 };
-FUR.open = (x, yy, z) => { FUR.cur = mpFKey(x, yy, z); FUR.render(); };
+FUR.open = (x, yy, z) => { FUR.cur = x === "bag" ? "bag" : mpFKey(x, yy, z); FUR.render(); };   // "bag" = 휴대용 화로 (제작 창의 🔥 굽기)
 FUR.render = () => {
   const s = FUR.st[FUR.cur], p = FUR.prog(s);
-  const smelt = MPR.filter(r => r.at === "furnace");
+  const smelt = MPR.filter(r => r.at === "furnace" && crShown(r));
   let job = `<div class="mpnote">비어 있어요 · 아래에서 구울 것을 넣어요 (연료는 가방에서 알아서 써요)</div>`;
   if (s) {
     const left = Math.max(0, Math.ceil((s.n - p) * s.per - ((Date.now() - s.t0) / 1000 - p * s.per)));
@@ -176,8 +185,9 @@ FUR.render = () => {
     const id = r.i[0][0], h = mpHave(id); if (!h) return "";
     const idx = MPR.indexOf(r);
     return `<div class="mprow"><span class="ic">${CR.icon(id)}</span><span class="tx"><b>${ae(mpNameOf(id))} → ${ae(mpNameOf(r.o[0]))}</b><span class="mpsub">가진 것 ${h}개 · 하나에 ${r.t}초</span></span><span class="bt"><button class="mpbtn" data-mp="fput:${idx}:1">×1</button>${h > 1 ? `<button class="mpbtn" data-mp="fput:${idx}:${Math.min(h, 8)}">×${Math.min(h, 8)}</button>` : ""}${h > 8 ? `<button class="mpbtn pri" data-mp="fput:${idx}:${Math.min(h, 64)}">×${Math.min(h, 64)}</button>` : ""}</span></div>`;
-  }).join("") || `<div class="mpnote">구울 수 있는 게 가방에 없어요 — 모래 · 조약돌 · 원석 · 원목 · 점토 덩이 · 선인장을 넣어요</div>`;
-  Br(`<i data-view="mpfur" hidden></i><h2>🔥 화로</h2>${job}<div class="mpnote">연료: 석탄 · 숯 (8개씩) · 판자 · 원목 (1.5개씩) · 막대기 · 지금 가진 연료로 <b>${Math.floor(FUR.fuelUnits())}개</b> 구울 수 있어요</div><div class="mplist">${rows}</div>`, "mpfw");
+  }).join("") || `<div class="mpnote">구울 수 있는 게 가방에 없어요 — 폐광에서 캔 원석(철 · 금 · 구리)이나 원목을 넣어요</div>`;
+  const back = FUR.cur === "bag" ? `<div class="mptabs"><button data-mp="crtab:can">🔨 제작으로</button><button class="on" data-mp="crtab:fur">🔥 굽기</button></div>` : "";
+  Br(`<i data-view="mpfur" hidden></i><h2>🔥 ${FUR.cur === "bag" ? "굽기 (휴대용 화로)" : "화로"}</h2>${back}${job}<div class="mpnote">연료: 석탄 · 숯 (8개씩) · 판자 · 원목 (1.5개씩) · 막대기 · 지금 가진 연료로 <b>${Math.floor(FUR.fuelUnits())}개</b> 구울 수 있어요</div><div class="mplist">${rows}</div>`, "mpfw");
 };
 MP.click.fput = v => {
   const [idx, n0] = v.split(":").map(Number), r = MPR[idx]; if (!r) return;
@@ -233,46 +243,10 @@ CHS.open = (x, yy, z, st) => {
   YS({ id, x: x + .5, y: yy, z: z + .5, tb: "mpbonus", st: st || "mpchest" });
 };
 
-// 상자 칸 하나를 돌려받기 (부술 때)
-const mpGiveSlot = (s, tg) => {
-  try {
-    if (s.sk === "coin") Pt(s.n, 1);
-    else if (s.sk === "food") { c.FI = c.FI || {}; c.FI[s.id] = Math.min(999, (c.FI[s.id] | 0) + s.n); }
-    else if (s.sk === "pot") { c.RPG.pot[s.id] = (c.RPG.pot[s.id] | 0) + s.n; }
-    else if (s.sk === "box") { const b = Us(); b[s.id | 0] = (b[s.id | 0] | 0) + s.n; }
-    else if (s.sk === "eq" && s.it) { c.RPG.eq.items.push(s.it); }
-    else if (!s.sk || s.st) BLD.giveDrop(s.id, s.n, tg.x + .5, tg.y + .5, tg.z + .5);
-  } catch (e) { console.warn("[마이폴 확장] 상자 돌려받기", e); }
-};
-
-// 블록을 눌렀을 때 (짓기 모드 우클릭) 열기
-MP.useOn = (tg) => {
-  if (tg.id === MPS.table) { CR.open("table"); return true; }
-  if (tg.id === MPS.furnace) { FUR.open(tg.x, tg.y, tg.z); return true; }
-  if (tg.id === MPS.chest) { CHS.open(tg.x, tg.y, tg.z); return true; }
-  return MP.useOn2 ? MP.useOn2(tg) : false;
-};
-// 부술 때: 상자 안 물건 · 화로 안 물건 떨구기
-{
-  const prev = MP.onBreak;
-  MP.onBreak = (tg, b) => {
-    prev && prev(tg, b);
-    if (tg.id === MPS.chest) {
-      const id = CHS.id(tg.x, tg.y, tg.z), a = S.op[id];
-      if (Array.isArray(a)) for (const s of a) if (s) mpGiveSlot(s, tg);
-      delete S.op[id];
-    }
-    if (tg.id === MPS.furnace) {
-      const k = mpFKey(tg.x, tg.y, tg.z), s = FUR.st[k];
-      if (s) { const p = FUR.prog(s); if (p - (s.got | 0) > 0) BLD.giveDrop(s.out, (p - (s.got | 0)) * (s.on || 1), tg.x + .5, tg.y + .5, tg.z + .5); if (s.n - p > 0) BLD.giveDrop(s.inp, s.n - p, tg.x + .5, tg.y + .5, tg.z + .5); delete FUR.st[k]; }
-    }
-  };
-}
-
-// 가까이 가면 F로 열기
+// 예전에 놓아 둔 작업대 · 화로 · 상자: 가까이 가면 F로 열기
 const mpNearStations = (L, P) => {
-  if (!S.out && !MP.inBuildZone?.()) return;
-  for (const [bid, l, fn] of [[MPS.table, "🛠️ 작업대 쓰기", () => CR.open("table")], [MPS.furnace, "🔥 화로 열기", s => FUR.open(s.x, s.y, s.z)], [MPS.chest, "📦 내 상자 열기", s => CHS.open(s.x, s.y, s.z)]]) {
+  if (!S.out) return;
+  for (const [bid, l, fn] of [[MPS.table, "🛠️ 작업대 쓰기", () => CR.open()], [MPS.furnace, "🔥 화로 열기", s => FUR.open(s.x, s.y, s.z)], [MPS.chest, "📦 내 상자 열기", s => CHS.open(s.x, s.y, s.z)]]) {
     const s = mpFind(bid, 2); if (!s) continue;
     L.push({ x: s.x + .5, z: s.z + .5, y: P.y, r: 2.6, l, fn: () => fn(s) });
   }
@@ -280,7 +254,7 @@ const mpNearStations = (L, P) => {
 
 de.add({
   id: "mp_craft", name: "제작 · 화로 · 내 상자", need: ["mp_build", "chest"],
-  gives: "MP.craft.open() 제작 창 · MP.furnace 화로 · MP.chest 내 상자 · MP.recipes 레시피",
+  gives: "MP.craft.open() 제작 창 (어디서나 · 🔥 굽기 = 휴대용 화로) · MP.furnace 화로 · MP.chest 내 상자 · MP.recipes 레시피",
   near: mpNearStations,
   save: e => { e.mpf = FUR.st; },
   load: e => { FUR.st = e && e.mpf && typeof e.mpf === "object" ? e.mpf : {}; },

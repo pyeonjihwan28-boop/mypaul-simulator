@@ -83,7 +83,6 @@ CAR.call = () => {
 CAR.enter = () => {
   if (!CAR.m || CAR.on) return;
   try { if (et.on) sn(1); } catch (e) {}
-  if (BLD.on) BLD.toggle(false);
   if (GL.on) GL.stop();
   CAR.on = true; c.mpCar = CAR; CAR.parked = null; CAR.air = 0; CAR.vy = 0;
   c.yaw = CAR.h;
@@ -125,7 +124,6 @@ mpCss("mp-ride-css", `
 body.mpcar #qbar{display:none!important}
 body.mpcar #mpspd{top:var(--mpspdt,150px);bottom:auto}
 @media (pointer:coarse){body.mpcar #mpspd{left:calc(12px + env(safe-area-inset-left,0px));right:auto;transform:none;flex-direction:column;align-items:flex-start;gap:4px}}
-body.mpcar #mpbtnb{display:none!important}
 #mprace{position:fixed;left:50%;top:calc(42px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:13;display:none;align-items:center;gap:10px;padding:7px 16px;border-radius:999px;background:rgba(22,30,46,.92);color:#fff;font:600 13.5px "IBM Plex Sans KR",sans-serif;pointer-events:none;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 #mprace.on{display:flex}
 #mprace b{color:#f5c542}
@@ -442,7 +440,6 @@ const glideTick = dt => {
 
 // 컷신 카메라 뒤: 운전 중엔 내 모형을 운전석에 · 활공 중엔 몸을 눕혀요
 MP.camHook = (prev => () => { prev && prev(); try { if (c.pl && c.pl.g) { if (GL.on) c.pl.g.rotation.x = 1.15; else if (c.pl.g.rotation.x) c.pl.g.rotation.x = 0; } } catch (e) {} })(MP.camHook);
-{ const prev = BLD.can; BLD.can = () => !CAR.on && !GL.on && prev(); }
 { const orig = wg; wg = function () { if (CAR.on) return; return orig.apply(this, arguments); }; }
 { const orig = d0; d0 = function () { if (CAR.on) CAR.exit(); return orig.apply(this, arguments); }; }
 MP.hideFP = (prev => () => prev() || CAR.on)(MP.hideFP);

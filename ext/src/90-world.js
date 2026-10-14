@@ -1,7 +1,7 @@
-/* ───────────── 5단계: 레드스톤 · 무너진 차원문 → 용암 차원 · 주인공 3명 ─────────────
-   레드스톤: 레버 · 압력판 · 레드스톤 횃불(전원) → 레드스톤 선 → 램프 · 피스톤 (같은 방 친구와 레버 맞춰요)
-   차원문: 마크 '무너진 차원문'의 빠진 흑요석을 채우고 부싯돌과 부시로 불 → 용암 차원 (보물 창고 · 금 · 석영)
-   주인공: 5장 한탕 뒤 '번개'(배달 라이더) · '망치'(블록 건축가)와 바꿔 가며 놀아요 (GTA5처럼) · 둘 다 가상 인물 */
+/* ───────────── 5단계: 무너진 차원문 → 용암 차원 · 주인공 3명 (· 레드스톤) ─────────────
+   차원문: 마크 '무너진 차원문'에서 F(대화 버튼) → 가진 흑요석으로 빠진 틀을 채우고 부싯돌과 부시로 불 → 용암 차원 (보물 창고 · 금 · 석영 광석은 F로 캐요)
+   주인공: 5장 한탕 뒤 '번개'(배달 라이더) · '망치'(광부)와 바꿔 가며 놀아요 (GTA5처럼) · 둘 다 가상 인물
+   레드스톤: 짓기가 없어져서(V119) 새로 놓을 수는 없어요 · 예전에 놓아 둔 회로(레버 · 압력판 · 횃불 → 선 → 램프 · 피스톤)만 그대로 돌아가요 */
 
 const NB$m = MPI.newBlocks;
 // ══ 레드스톤 ══
@@ -79,15 +79,6 @@ RS.toggle = (k, net) => {
   try { q("click"); Lt("brk_stone", 0, 2.2); } catch (e) {}
   if (!net) { const [x, yy, z] = rp(k); mpNet("mrs", [x, yy, z, on ? 1 : 0]); mpSave(); }
 };
-MP.useOn2 = (prev => tg => { if (tg.id === RSB.lever) { RS.toggle(rk(tg.x, tg.y, tg.z)); return true; } return prev ? prev(tg) : false; })(MP.useOn2);
-// 피스톤은 내가 보는 쪽으로 밀어요
-MP.onPlace = (prev => (x, yy, z, bid) => {
-  prev && prev(x, yy, z, bid);
-  if (bid !== RSB.piston) return;
-  const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), pit = c.pitch || 0;
-  RS.dir[rk(x, yy, z)] = pit > .85 ? 5 : pit < -.85 ? 4 : Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 0 : 1) : (fz > 0 ? 2 : 3);
-  MP.decoVer = (MP.decoVer || 0) + 1;
-})(MP.onPlace);
 // 모양: 피스톤 · 피스톤 머리 · 레드스톤 횃불 · 눌린 압력판
 {
   const prev = DECO.build;
@@ -142,7 +133,8 @@ const NQUARTZ = mpBlk("nether_quartz_ore", 201, null, { n: "네더 석영 광석
 mpAdd("quartz", "네더 석영", "⚪", "r", 12);
 MP.recipes.push({ o: ["quartz_block", 1], i: [["quartz", 4]], at: "hand", cat: "블록" });
 MP.recipes.push({ o: ["gold_ingot", 1], i: [["gold_nugget", 9]], at: "hand", cat: "재료" });
-SHOP.find(s => s[0] === "블록")[1].push(["obsidian", 4, 400]);
+(SHOP.find(s => s[0] === "재료") || SHOP[0])[1].push(["obsidian", 4, 400]);
+MP.oreIds.add(NGOLD); MP.oreIds.add(NQUARTZ);
 const DIM = (MP.dim = { cx: -400, cz: 400, R: 9, P: 2, portals: new Map(), lit: new Set(), back: null, in: false, cyc: {}, pick: 0, planes: new Map() });
 DIM.x0 = (DIM.cx - DIM.P) * 64; DIM.x1 = (DIM.cx + DIM.P + 1) * 64; DIM.z0 = (DIM.cz - DIM.P) * 64; DIM.z1 = (DIM.cz + DIM.P + 1) * 64;
 DIM.spawn = [(DIM.cx + .5) * 64, (DIM.cz + .5) * 64];
@@ -212,24 +204,27 @@ const dimGen = (Q, cx, cz) => {
 DIM.known = () => { if (DIM.kn) return DIM.kn; const L = []; for (let cx = -9; cx <= 9; cx++) for (let cz = -14; cz <= -2; cz++) { try { if (wB(cx, cz) === "ruined_portal") L.push([cx * 64 + 32, cz * 64 + 32, cx + "," + cz]); } catch (e) {} } return (DIM.kn = L); };
 DIM.frame = p => { const out = []; for (let x = p.r - 2; x <= p.r + 2; x++) out.push([x, 0, p.a], [x, 4, p.a]); for (let yy = 1; yy <= 3; yy++) out.push([p.r - 2, yy, p.a], [p.r + 2, yy, p.a]); return out; };
 DIM.missing = p => DIM.frame(p).filter(([x, yy, z]) => { const id = Hr(x, yy, z); return id !== rn.obsidian && id !== rn.crying_obsidian; }).length;
-DIM.innerFree = p => { for (let x = p.r - 1; x <= p.r + 1; x++) for (let yy = 1; yy <= 3; yy++) if (Hr(x, yy, p.a)) return false; return true; };
-DIM.portalOf = (x, z) => { for (const p of DIM.portals.values()) if (x >= p.r - 2 && x <= p.r + 2 && Math.abs(z - p.a) < 1) return p; return null; };
-// 부싯돌과 부시: 흑요석 틀이 다 차 있으면 차원문에 불이 붙어요
-MP.useItem2 = (prev => (tg, it) => {
-  if (it === "flint_and_steel") {
-    const p = DIM.portalOf(tg.x, tg.z) || DIM.portalOf(tg.px, tg.pz);
-    if (p && (tg.id === rn.obsidian || tg.id === rn.crying_obsidian || !tg.id)) {
-      if (DIM.lit.has(p.k)) { mpToast("🟪 이미 열린 차원문이에요 · 걸어 들어가요", 1600); return false; }
-      const miss = DIM.missing(p);
-      if (miss) { mpToast("🟪 흑요석이 " + miss + "개 더 필요해요 · 빠진 틀 자리에 흑요석을 놓아요", 2200); return false; }
-      if (!DIM.innerFree(p)) { mpToast("🟪 차원문 안쪽을 비워요", 1600); return false; }
-      DIM.lit.add(p.k); try { Lt("level", 0, .8); Lt("fuse", 0, .6); } catch (e) {}
-      mpToast("🟪 차원문이 열렸어요! 보라색 문으로 걸어 들어가요", 2600); MP.stat("portals"); mpSave();
-      return false;
+// 무너진 차원문에서 F: 가진 흑요석으로 빠진 틀 채우기 → 부싯돌과 부시로 불 붙이기 (안쪽은 저절로 비워요)
+DIM.fix = p => {
+  if (DIM.lit.has(p.k)) return mpToast("🟪 이미 열린 차원문이에요 · 걸어 들어가요", 1600);
+  const miss = DIM.missing(p), have = mpHave("obsidian");
+  if (miss) {
+    if (have < miss) return mpToast("🟪 흑요석이 " + miss + "개 필요해요 (가진 것 " + have + "개) · 블록폰 엔더 택배 재료 탭에서 사요", 2600);
+    mpTake("obsidian", miss);
+    for (const [x, yy, z] of DIM.frame(p)) {
+      const id = Hr(x, yy, z); if (id === rn.obsidian || (rn.crying_obsidian && id === rn.crying_obsidian)) continue;
+      if (id) { BLD.setBlock(x, yy, z, 0); mpNet("mb", [x, yy, z]); }
+      BLD.setBlock(x, yy, z, rn.obsidian, 0, 1); mpNet("mp", [x, yy, z, rn.obsidian]);
     }
+    try { Lt("brk_stone", 0, .7); } catch (e) {}
+    MP.fx(p.r + .5, 2.5, p.a + .5, [.6, .3, 1], 14, 2, .25);
+    if (!mpHave("flint_and_steel")) return mpToast("🟪 차원문 틀을 고쳤어요! 이제 부싯돌과 부시로 불을 붙여요 (제작: 철 주괴 + 부싯돌)", 3000);
   }
-  return prev ? prev(tg, it) : false;
-})(MP.useItem2);
+  if (!mpHave("flint_and_steel")) return mpToast("🔥 부싯돌과 부시가 필요해요 · 블록폰 🔨 제작(철 주괴 + 부싯돌) · 엔더 택배 도구", 2600);
+  for (let x = p.r - 1; x <= p.r + 1; x++) for (let yy = 1; yy <= 3; yy++) if (Hr(x, yy, p.a)) { BLD.setBlock(x, yy, p.a, 0); mpNet("mb", [x, yy, p.a]); }
+  DIM.lit.add(p.k); try { Lt("level", 0, .8); Lt("fuse", 0, .6); } catch (e) {}
+  mpToast("🟪 차원문이 열렸어요! 보라색 문으로 걸어 들어가요", 2600); MP.stat("portals"); mpSave();
+};
 // 보라색 문 (보이기 · 들어가기)
 const portalMat = new v.MeshBasicMaterial({ color: 0x9b5cff, transparent: true, opacity: .62, side: v.DoubleSide, blending: v.AdditiveBlending, depthWrite: false, toneMapped: false });
 const portalPlane = (r, a, y0) => { const m = new v.Mesh(new v.PlaneGeometry(3, 3), portalMat); m.position.set(r + .5, y0 + 1.5, a + .5); m.renderOrder = 3; m.layers.set(1); return m; };
@@ -247,7 +242,7 @@ mpCss("mp-dim-css", `#mpfade.dim{background:#6b21a8}`);
 const dimGo = fn => { fadeEl.classList.add("dim", "on"); setTimeout(() => { try { fn(); } finally { setTimeout(() => fadeEl.classList.remove("on"), 650); setTimeout(() => fadeEl.classList.remove("dim"), 1200); } }, 520); };
 DIM.enter = p => {
   if (DIM.busy) return; DIM.busy = 1;
-  if (CAR.on) CAR.exit(); if (GL.on) GL.stop(); if (BLD.on) BLD.toggle(false);
+  if (CAR.on) CAR.exit(); if (GL.on) GL.stop();
   try { Lt("level", 0, .5); } catch (e) {}
   dimGo(() => {
     const P = c.P; DIM.back = [p.r + .5, p.a + 2.6];
@@ -305,11 +300,15 @@ MP.camHook = (prev => () => { prev && prev(); if (DIM.in && Ye.fog) Ye.fog.color
 MP.chestTitles.mptreasure = ["💰 보물 창고 (용암 차원)", "3시간마다 새 보물이 채워져요 · 칸을 누르면 하나씩 가방으로"];
 const dimNear = (L, P) => {
   if (!S.out) return;
-  if (DIM.in) { if (Math.hypot(DIM.home.r + .5 - P.x, DIM.home.a + .5 - P.z) < 3.5) L.push({ x: DIM.home.r + .5, z: DIM.home.a, y: P.y, r: 3.5, l: "🟪 보라색 문으로 돌아가기", fn: DIM.exit }); return; }
+  if (DIM.in) { MP.oreNear(L, P); if (Math.hypot(DIM.home.r + .5 - P.x, DIM.home.a + .5 - P.z) < 3.5) L.push({ x: DIM.home.r + .5, z: DIM.home.a, y: P.y, r: 3.5, l: "🟪 보라색 문으로 돌아가기", fn: DIM.exit }); return; }
   for (const p of DIM.portals.values()) {
     if (Math.hypot(p.r + .5 - P.x, p.a + .5 - P.z) > 4.5) continue;
     if (DIM.lit.has(p.k)) L.push({ x: p.r + .5, z: p.a + .5, y: P.y, r: 4.5, l: "🟪 차원문으로 들어가기 (용암 차원)", fn: () => DIM.enter(p) });
-    else { const miss = DIM.missing(p); L.push({ x: p.r + .5, z: p.a + .5, y: P.y, r: 4.5, l: miss ? "🟪 무너진 차원문 · 흑요석 " + miss + "개 더 놓기" : "🟪 차원문 틀 완성! 부싯돌과 부시로 불 붙이기", fn: () => mpToast(miss ? "🟪 짓기 모드(" + (c.isTouch ? "짓기 버튼" : "X") + ")로 빠진 틀 자리에 흑요석을 놓아요 · 엔더 택배에서 흑요석을 살 수 있어요" : "🔥 짓기 칸에 부싯돌과 부시를 들고 흑요석 틀을 " + (c.isTouch ? "놓기 버튼" : "우클릭") + "해요", 3200) }); }
+    else {
+      const miss = DIM.missing(p), have = mpHave("obsidian"), fl = mpHave("flint_and_steel") > 0;
+      const l = miss ? (have >= miss ? "🟪 흑요석 " + miss + "개로 무너진 차원문 고치기" : "🟪 무너진 차원문 · 흑요석 " + miss + "개 필요 (가진 것 " + have + ")") : fl ? "🔥 부싯돌과 부시로 차원문에 불 붙이기" : "🟪 차원문 틀 완성 · 부싯돌과 부시가 필요해요";
+      L.push({ x: p.r + .5, z: p.a + .5, y: P.y, r: 4.5, l, fn: () => DIM.fix(p) });
+    }
   }
 };
 const dimMarks = (ctx, X, Z, big) => {
@@ -318,7 +317,7 @@ const dimMarks = (ctx, X, Z, big) => {
   else for (const p of DIM.portals.values()) ctx.fillText(DIM.lit.has(p.k) ? "🟪" : "⬛", X(p.r), Z(p.a));
   ctx.restore();
 };
-{ const prev = ST.phoneHtml; ST.phoneHtml = () => prev() + `<div class="mpcard"><b>🟪 무너진 차원문 → 용암 차원</b><span class="mpsub">${DIM.in ? "지금 용암 차원이에요 · 보라색 문으로 돌아가요" : DIM.lit.size ? "열린 차원문 " + DIM.lit.size + "개 · 걸어 들어가요" : "빠진 흑요석을 채우고 부싯돌과 부시로 불을 붙여요"}</span>${DIM.in ? "" : `<button class="mpbtn" data-mp="dimgo">길 안내</button>`}</div>`; }
+{ const prev = ST.phoneHtml; ST.phoneHtml = () => prev() + `<div class="mpcard"><b>🟪 무너진 차원문 → 용암 차원</b><span class="mpsub">${DIM.in ? "지금 용암 차원이에요 · 보라색 문으로 돌아가요" : DIM.lit.size ? "열린 차원문 " + DIM.lit.size + "개 · 걸어 들어가요" : "차원문 앞에서 " + (c.isTouch ? "대화 버튼" : "F") + " · 흑요석으로 고치고 부싯돌과 부시로 불을 붙여요"}</span>${DIM.in ? "" : `<button class="mpbtn" data-mp="dimgo">길 안내</button>`}</div>`; }
 MP.click.dimgo = () => { const P = c.P; let best = null, bd = 1e9; for (const [x, z, k] of DIM.known()) { const p = DIM.portals.get(k), e = p ? [p.r, p.a] : [x, z], d = Math.hypot(e[0] - P.x, e[1] - P.z); if (d < bd) { bd = d; best = e; } } if (!best) return mpToast("🟪 근처에 무너진 차원문이 없어요", 1600); try { Oi.on = 1; Oi.x = best[0]; Oi.z = best[1]; } catch (x) {} PH.close(); mpToast("📍 가까운 무너진 차원문으로 길 안내 · " + Ge(Math.round(bd)) + "m", 2400); };
 
 // ══ 주인공 3명 ══
@@ -326,9 +325,9 @@ const HERO = (MP.hero = { cur: "me", on: 0, pos: {}, body: {}, pup: null, meClon
 const HEROES = {
   me: { n: () => { try { return Tr(); } catch (e) { return "나"; } }, role: "마이폴 학생", ic: "🎒", ab: "학교 · 보스전 · 퀘스트는 나만 할 수 있어요" },
   bolt: { n: () => "번개", role: "배달 라이더", ic: "⚡", ab: "달리기 +25% · 블록카 최고 속도 +20% · 니트로 회복 2배", look: { hair: 0x1b1b1b, shirt: 0xf5c542, ex: "j", jacket: 0x111111, pants: 0x1f2937, shoe: 0xf5c542 }, hat: 0xf5c542, spawn: [30, -118] },
-  ham: { n: () => "망치", role: "블록 건축가", ic: "🔨", ab: "블록 캐기 2배 · 놓기 2배 빠르게 · 놓는 블록 수 +50%", look: { hair: 0x5a3a1c, shirt: 0xf97316, ex: "", pants: 0x2b3446, shoe: 0x5a3a1c }, hat: 0xf97316, spawn: [-40, -126] },
+  ham: { n: () => "망치", role: "광부", ic: "🔨", ab: "광석 · 금고 문을 2배 빠르게 캐요", look: { hair: 0x5a3a1c, shirt: 0xf97316, ex: "", pants: 0x2b3446, shoe: 0x5a3a1c }, hat: 0xf97316, spawn: [-40, -126] },
 };
-MP.heroMul = k => { const h = HERO.cur; if (h === "bolt") return k === "car" ? 1.2 : k === "nos" ? 2 : 1; if (h === "ham") return k === "mine" ? 2 : k === "blocks" ? 1.5 : 1; return 1; };
+MP.heroMul = k => { const h = HERO.cur; if (h === "bolt") return k === "car" ? 1.2 : k === "nos" ? 2 : 1; if (h === "ham") return k === "mine" ? 2 : 1; return 1; };
 { const orig = Ci; Ci = function () { const r = orig.apply(this, arguments); return HERO.cur === "bolt" && r && r.run ? Object.assign({}, r, { run: r.run * 1.25 }) : r; }; }
 { const prev = BLD.mineTime; BLD.mineTime = (bid, qq) => { const r = prev(bid, qq), m = MP.heroMul("mine"); return m !== 1 && r && r.t < 1e8 ? Object.assign({}, r, { t: r.t / m }) : r; }; }
 const heroModel = h => {
@@ -341,7 +340,7 @@ const heroModel = h => {
 };
 HERO.unlock = () => {
   if (HERO.on) return; HERO.on = 1; mpSave();
-  setTimeout(() => { if (ST.canTalk() && MP.npcs.kkachi) ST.say("kkachi", ["이번 한탕, 사실 둘이 더 도와줬어. 배달 라이더 '번개'랑 블록 건축가 '망치'.", "이제부터 셋이 한 팀이야. 블록폰 👥 앱" + (c.isTouch ? "에서" : "이나 쉼표(,) 키로") + " 바꿔 가며 놀아 봐!"]); else mpToast("👥 새 주인공 '번개' · '망치'가 생겼어요! 블록폰 👥 앱" + (c.isTouch ? "에서" : "이나 , 키로") + " 바꿔요", 4200); }, 7800);
+  setTimeout(() => { if (ST.canTalk() && MP.npcs.kkachi) ST.say("kkachi", ["이번 한탕, 사실 둘이 더 도와줬어. 배달 라이더 '번개'랑 광부 '망치'.", "이제부터 셋이 한 팀이야. 블록폰 👥 앱" + (c.isTouch ? "에서" : "이나 쉼표(,) 키로") + " 바꿔 가며 놀아 봐!"]); else mpToast("👥 새 주인공 '번개' · '망치'가 생겼어요! 블록폰 👥 앱" + (c.isTouch ? "에서" : "이나 , 키로") + " 바꿔요", 4200); }, 7800);
 };
 HERO.can = h => {
   if (!HERO.on) return "5장 한탕을 끝내면 열려요";
@@ -355,14 +354,14 @@ HERO.can = h => {
 HERO.switch = (h, here) => {
   if (h === HERO.cur || !HEROES[h]) return;
   const why = HERO.can(h); if (why) return mpToast("👥 " + why, 2000);
-  if (CAR.on) CAR.exit(); if (GL.on) GL.stop(); if (BLD.on) BLD.toggle(false);
+  if (CAR.on) CAR.exit(); if (GL.on) GL.stop();
   PH.close();
   const P = c.P, from = HERO.cur;
   HERO.pos[from] = [P.x, P.y, P.z, c.yaw];
   if (from === "me" && c.pl && c.pl.g) { try { HERO.meClone = c.pl.g.clone(true); HERO.meClone.traverse(o => { if (o.isSprite) o.visible = false; }); HERO.meClone.rotation.x = 0; } catch (e) { HERO.meClone = null; } }
   const to = HERO.pos[h] || (() => { const s = HEROES[h].spawn ? snap(HEROES[h].spawn[0], HEROES[h].spawn[1]) : [P.x, P.z]; return [s[0], 0, s[1], 0]; })();
   const go = () => {
-    HERO.cur = h; BLD.placeGap = h === "ham" ? 110 : 220;
+    HERO.cur = h;
     P.x = to[0]; P.z = to[2]; P.y = to[1] || 0; P.vy = 0; P.fly = 0; c.yaw = to[3] || 0; HERO.hold = to[1] || 0;
     if (h === "me" && c.pl && c.pl.g) c.pl.g.visible = !c.fp;
     delete HERO.pos[h];
@@ -411,7 +410,7 @@ const heroNear = (L, P) => {
 // 학교로 들어가면 나로 돌아와요
 const heroTick = dt => {
   if (HERO.hold != null && HERO.hold !== false) { const P = c.P, ch = mpChunkAt(P.x, P.z); if (ch && ch.G) { P.y = ja(P.x, P.z, HERO.hold + .6); HERO.hold = null; } else { P.vy = 0; P.y = HERO.hold; } }
-  if (HERO.cur !== "me" && c.run && (!S.out || c.bm)) { HERO.cur = "me"; BLD.placeGap = 220; if (HERO.pup) HERO.pup.g.visible = false; if (c.pl && c.pl.g) c.pl.g.visible = !c.fp; mpToast("🏫 학교에서는 나로 돌아와요", 2000); }
+  if (HERO.cur !== "me" && c.run && (!S.out || c.bm)) { HERO.cur = "me"; if (HERO.pup) HERO.pup.g.visible = false; if (c.pl && c.pl.g) c.pl.g.visible = !c.fp; mpToast("🏫 학교에서는 나로 돌아와요", 2000); }
   if ((HERO.bt = (HERO.bt || 0) - dt) <= 0) { HERO.bt = 1; HERO.bodySync(false); }
 };
 addEventListener("keydown", e => {
@@ -432,19 +431,19 @@ MP.click.heroset = h => HERO.switch(h);
 { const prev = ST.pass; ST.pass = () => { const id = ST.cur && ST.cur.id; prev(); if (id === "m5") HERO.unlock(); }; ST.pass.wrapped = 1; }
 
 // ── V109 휴대폰 자동 공격과 맞추기 ──
-// 사진 모드에서는 총을 안 쏴요 (짓기 · 블록카는 20-build · 70-ride 에서 이미 막아요).
-// 짓기 · 블록카 · 사진 모드에서는 자동 공격 과녁(#autot)도 숨겨요. 자동 공격 tick 다음에 돌아요.
+// 사진 모드에서는 총을 안 쏴요 (블록카는 70-ride 에서 이미 막아요).
+// 블록카 · 사진 모드에서는 자동 공격 과녁(#autot)도 숨겨요. 자동 공격 tick 다음에 돌아요.
 { const orig = wg; wg = function () { if (CAM.on) return; return orig.apply(this, arguments); }; }
 const autoTick = () => {
   try {
     if (typeof as !== "object" || !as) return;
-    if (BLD.on || CAR.on || CAM.on) { as.tg = null; const t = J("autot"); if (t && !t.hidden) t.hidden = true; }
+    if (CAR.on || CAM.on) { as.tg = null; const t = J("autot"); if (t && !t.hidden) t.hidden = true; }
   } catch (e) {}
 };
 
 de.add({
-  id: "mp_world", name: "레드스톤 · 용암 차원 · 주인공 3명", need: ["mp_mine", "mp_ride", "mp_story"],
-  gives: "MP.rs 레드스톤 (레버 · 압력판 · 횃불 → 선 → 램프 · 피스톤) · MP.dim 무너진 차원문 → 용암 차원 · MP.hero 주인공 3명 (나 · 번개 · 망치)",
+  id: "mp_world", name: "용암 차원 · 주인공 3명 · 레드스톤", need: ["mp_mine", "mp_ride", "mp_story"],
+  gives: "MP.dim 무너진 차원문(F: 흑요석 채우기 · 불 붙이기) → 용암 차원 · MP.hero 주인공 3명 (나 · 번개 · 망치) · MP.rs 예전에 놓은 레드스톤 회로",
   chunkGen: dimGen,
   near: (L, P) => { rsNear(L, P); dimNear(L, P); heroNear(L, P); },
   net: (k, e) => { if (k === "mrs") { const [x, yy, z, on] = e.slice(2).map(Number); const kk = rk(x, yy, z); if (!!on !== RS.on.has(kk)) RS.toggle(kk, 1); return true; } return false; },
@@ -468,7 +467,6 @@ de.add({
       if (hr2.pos && typeof hr2.pos === "object") for (const [k, v] of Object.entries(hr2.pos)) if (HEROES[k] && Array.isArray(v) && v.slice(0, 3).every(isFinite)) HERO.pos[k] = v.slice(0, 4).map(Number);
       if (HEROES[hr2.cur] && HERO.on) HERO.cur = hr2.cur;
     }
-    BLD.placeGap = HERO.cur === "ham" ? 110 : 220;
     setTimeout(RS.scan, 0); RS.scan();
   },
   newGame: () => { RS.on = new Set(); RS.dir = {}; DIM.lit = new Set(); HERO.on = 0; HERO.cur = "me"; HERO.pos = {}; },

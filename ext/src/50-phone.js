@@ -1,6 +1,6 @@
 /* ───────────── 3단계: 블록폰 (게임 속 휴대폰) ─────────────
    바로가기의 📱 · 키보드 . (마침표) · 휴대폰 화면은 위쪽 바로가기 줄의 '폰'
-   앱: 지도 · 미션 · 연락처 · 카메라 · 사진첩 · 은행 · 엔더 택배 · 부동산 · 기록 */
+   앱: 지도 · 미션 · 연락처 · 카메라 · 사진첩 · 은행 · 엔더 택배 · 부동산 · 제작 · 기록 */
 
 const PH = (MP.phone = { on: false, app: "home", bank: 0, photos: [], unlock: {}, stats: {}, filter: "", selfie: false });
 const PH_KEY = "mypaul_mpphotos";
@@ -36,7 +36,7 @@ mpCss("mp-phone-css", `
 #mpphone input[type=number]{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.3);color:#fff;font:600 15px "IBM Plex Sans KR",sans-serif}
 #qbar button#mpqph i{font-size:18px}
 @media (max-height:560px){#mpphone .clock{font-size:34px;margin:6px 0 2px}#mpphone .date{margin-bottom:4px}#mpphone .grid{gap:10px 8px;margin-top:4px}#mpphone .app i{width:46px;height:46px;font-size:22px;border-radius:13px}#mpphone .phs{padding:8px 20px 4px}#mpphone .phn{padding:4px 0 8px}}
-body.mpphoto #hud,body.mpphoto #mpbar,body.mpphoto #mpbtnb,body.mpphoto #qbar,body.mpphoto #mcbar,body.mpphoto #xpb,body.mpphoto #skb,body.mpphoto #touch,body.mpphoto #mpobj,body.mpphoto #mpcross,body.mpphoto #gtabig{visibility:hidden!important}
+body.mpphoto #hud,body.mpphoto #qbar,body.mpphoto #mcbar,body.mpphoto #xpb,body.mpphoto #skb,body.mpphoto #touch,body.mpphoto #mpobj,body.mpphoto #mpdig,body.mpphoto #gtabig{visibility:hidden!important}
 #mpcam{position:fixed;inset:0;z-index:41;pointer-events:none;display:none}
 body.mpphoto #mpcam{display:block}
 #mpcam .fr{position:absolute;inset:6%;border:2px solid rgba(255,255,255,.7);border-radius:6px}
@@ -88,7 +88,7 @@ addEventListener("keydown", e => {
 const APPS = [
   ["map", "🗺️", "지도", "#2f6fed"], ["mis", "🎯", "미션", "#e5484d"], ["con", "📞", "연락처", "#2fae5f"],
   ["cam", "📸", "카메라", "#8a5cf6"], ["gal", "🖼️", "사진첩", "#c2410c"], ["bank", "🏦", "은행", "#0e7490"],
-  ["shop", "📦", "엔더 택배", "#16a34a"], ["lot", "🏠", "부동산", "#b45309"], ["rec", "🏆", "기록", "#475569"],
+  ["shop", "📦", "엔더 택배", "#16a34a"], ["lot", "🏠", "부동산", "#b45309"], ["craft", "🔨", "제작", "#7c5a2b"], ["rec", "🏆", "기록", "#475569"],
 ];
 PH.render = () => {
   const b = J("mpphb"); if (!b) return;
@@ -100,6 +100,7 @@ PH.render = () => {
     b.innerHTML = `<div class="clock">${phTime()}</div><div class="date">${S.out ? "🏙️ 바깥 도시 · " + ae(MP.placeName()) : "🏫 마이폴학교"}</div><div class="grid">${APPS.map(([k, ic, n, col]) => `<button class="app" data-mp="phapp:${k}" style="--a:${col}"><i>${ic}</i>${n}${k === "mis" && bd ? `<em>${bd}</em>` : ""}</button>`).join("")}</div>`;
   } else if (a === "map") { PH.close(); try { Kx(); } catch (e) {} return; }
   else if (a === "lot") { PH.close(); LOT.render(); return; }
+  else if (a === "craft") { PH.close(); MP.craft.open(); return; }
   else if (a === "cam") { PH.close(); CAM.open(); return; }
   else if (a === "mis") b.innerHTML = head("🎯 미션") + (MP.story ? MP.story.phoneHtml() : "");
   else if (a === "con") b.innerHTML = head("📞 연락처") + PH.contacts();
@@ -124,17 +125,17 @@ MP.click.bank = k => {
 };
 
 // ── 엔더 택배 (온라인 상점 · 바로 가방으로) ──
+// 짓기가 없어져서(V119) 블록 · 가구는 팔지 않아요 — 폐광 · 한탕 · 차원문 · 농사에 쓰는 것만
 const SHOP = [
-  ["블록", [["oak_planks", 16, 40], ["cobblestone", 16, 40], ["bricks", 16, 90], ["glass", 16, 80], ["white_concrete", 16, 70], ["stone_bricks", 16, 70], ["quartz_block", 16, 160], ["torch_b", 8, 60], ["dirt", 16, 30]]],
-  ["농사", [["wheat_seeds", 8, 40], ["beetroot_seeds", 8, 50], ["pumpkin_seeds", 4, 80], ["melon_seeds", 4, 80], ["white_dye", 8, 60], ["wooden_hoe", 1, 40]]],
-  ["도구", [["stone_pickaxe", 1, 120], ["iron_pickaxe", 1, 600], ["iron_axe", 1, 450], ["iron_shovel", 1, 300], ["shears", 1, 200], ["flint_and_steel", 1, 260]]],
-  ["재료", [["iron_ingot", 4, 200], ["coal", 8, 80], ["string", 8, 60], ["gunpowder", 4, 240], ["sand", 16, 40], ["redstone", 8, 120]]],
-  ["가구", [["crafting_table", 1, 40], ["furnace", 1, 90], ["chest", 1, 80], ["red_bed", 1, 200], ["bookshelf", 1, 180]]],
+  ["도구", [["stone_pickaxe", 1, 120], ["iron_pickaxe", 1, 600], ["flint_and_steel", 1, 260]]],
+  ["재료", [["oak_planks", 16, 40], ["iron_ingot", 4, 200], ["coal", 8, 80], ["gunpowder", 4, 240], ["sand", 16, 40]]],
+  ["농사", [["wheat_seeds", 8, 40], ["beetroot_seeds", 8, 50], ["pumpkin_seeds", 4, 80], ["melon_seeds", 4, 80], ["white_dye", 8, 60]]],
 ];
-PH.shopTab = "블록";
+PH.shopTab = SHOP[0][0];
 PH.shopHtml = () => {
   if (!PH.unlock.shop) return `<div class="mpcard">📦 미나 누나의 '블록 택배' 일을 도와주면 (미션 2장) 엔더 택배 앱이 열려요.</div>`;
   const tabs = SHOP.map(([n]) => `<button class="${PH.shopTab === n ? "on" : ""}" data-mp="shoptab:${n}">${n}</button>`).join("");
+  if (!SHOP.some(s => s[0] === PH.shopTab)) PH.shopTab = SHOP[0][0];
   const L = (SHOP.find(s => s[0] === PH.shopTab) || SHOP[0])[1];
   return `<div class="mptabs">${tabs}</div><p class="mpsub" style="margin:0 0 8px">엔더 진주 순간이동 배송 · 누르면 바로 가방으로 · 지갑 ${Ge(c.coins || 0)}</p>` + L.map(([id, n, pr], i) => `<div class="mpcard"><div class="row2"><span style="font-size:24px">${MPI.blockOf[id] ? `<img src="${MP.blockIcon(MPI.blockOf[id], 30)}" alt="" style="width:30px;height:30px">` : mpIconOf(id)}</span><span class="tx"><b>${ae(mpNameOf(id))} ×${n}</b><span>${Ge(pr)} 코인</span></span><button class="mpbtn pri" data-mp="shopbuy:${PH.shopTab}:${i}"${(c.coins || 0) < pr ? " disabled" : ""}>주문</button></div></div>`).join("");
 };
@@ -178,12 +179,11 @@ MP.click.call = k => {
 // ── 기록 ──
 PH.recHtml = () => {
   const s = PH.stats, S = MP.story;
-  const rows = [["🎯 끝낸 미션", S ? Object.keys(S.done).length + " / " + S.list.length : 0], ["💰 한탕 성공", s.heists | 0], ["🧱 놓은 블록", s.placed | 0], ["⛏️ 캔 블록", s.mined | 0], ["🔨 만든 것", s.crafted | 0], ["🌾 거둔 작물", s.harvest | 0], ["🐣 태어난 동물", s.bred | 0], ["📦 택배 주문", s.orders | 0], ["📸 찍은 사진", s.photos | 0]];
+  const rows = [["🎯 끝낸 미션", S ? Object.keys(S.done).length + " / " + S.list.length : 0], ["💰 한탕 성공", s.heists | 0], ["⛏️ 캔 광석", s.mined | 0], ["🔨 만든 것", s.crafted | 0], ["🌾 거둔 작물", s.harvest | 0], ["🐣 태어난 동물", s.bred | 0], ["📦 택배 주문", s.orders | 0], ["📸 찍은 사진", s.photos | 0]];
   const rec = MP.race && MP.race.best ? Object.entries(MP.race.best).map(([k, v]) => [`🏁 ${MP.race.name(k)} 최고 기록`, (v / 1000).toFixed(2) + "초"]) : [];
   return `<div class="mpcard">${rows.concat(rec).map(([a, b]) => `<div class="row2"><span class="tx"><b>${a}</b></span><b>${b}</b></div>`).join("")}</div>`;
 };
 { // 기록 모으기
-  const pP = MP.onPlace; MP.onPlace = (...a) => { pP && pP(...a); MP.stat("placed"); };
   const pB = MP.onBreak; MP.onBreak = (...a) => { pB && pB(...a); MP.stat("mined"); };
   const pC = MP.onCraft; MP.onCraft = (o, n) => { pC && pC(o, n); MP.stat("crafted", n); };
   const pH = MP.onHarvest; MP.onHarvest = k => { pH && pH(k); MP.stat("harvest"); };
@@ -256,7 +256,7 @@ setInterval(() => { try { phPlace(); } catch (e) {} }, 700);
 // 은행: 쓰러질 때 지갑만 떨어뜨려요 (통장은 그대로) — 본체가 지갑(c.coins)만 다뤄서 따로 할 일 없음
 de.add({
   id: "mp_phone", name: "블록폰 (휴대폰)", need: ["mp_build", "mp_home", "taxi", "want", "veh"],
-  gives: "MP.phone.open(앱) · 은행(통장) · 엔더 택배 · 연락처 · 카메라(사진 모드) · 사진첩 · 기록",
+  gives: "MP.phone.open(앱) · 은행(통장) · 엔더 택배 · 연락처 · 카메라(사진 모드) · 사진첩 · 🔨 제작 · 기록",
   save: e => { e.mpp = { v: 1, bank: PH.bank, unlock: PH.unlock, stats: PH.stats }; },
   load: e => { const d = e && e.mpp; PH.bank = d && +d.bank > 0 ? Math.floor(+d.bank) : 0; PH.unlock = d && d.unlock && typeof d.unlock === "object" ? d.unlock : {}; PH.stats = d && d.stats && typeof d.stats === "object" ? d.stats : {}; },
   newGame: () => { PH.bank = 0; PH.unlock = {}; PH.stats = {}; },

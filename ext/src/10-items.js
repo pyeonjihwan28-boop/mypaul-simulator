@@ -1,6 +1,6 @@
 /* ───────────── 아이템 종류 · 새 블록 · 그림판 ─────────────
-   새 아이템 종류: "blk" 놓을 수 있는 블록 · "t" 도구 · "r" 재료
-   (본체는 "c" 종류를 코인으로 바꿔 버려서, 짓기·제작에 쓰는 건 종류를 바꿔요) */
+   새 아이템 종류: "blk" 블록 (제작 재료 · 팔기 · TNT는 한탕) · "t" 도구 · "r" 재료
+   (본체는 "c" 종류를 코인으로 바꿔 버려서, 제작에 쓰는 건 종류를 바꿔요) */
 
 const MPI = (MP.items = { blockOf: {}, itemOf: {}, tools: {}, cat: {} });
 const mpNameOf = id => (ji[id] ? ji[id][0] : id);
@@ -264,7 +264,6 @@ MPI.cap = { blk: 999, r: 999, t: 9 };
     c.MI[id] = Math.min(MPI.cap[k] || 999, (c.MI[id] | 0) + n);
     const r = ji[id];
     if (!quiet) mpToast(r[1] + " " + r[0] + " +" + n + " (가방 " + c.MI[id] + ")", 1400);
-    try { MP.onGain && MP.onGain(id, n); } catch (e) {}
     if (c.invOn) yp();
     mpSave();
     return r[1] + " " + r[0] + " ×" + n;
@@ -281,23 +280,22 @@ MPI.cap = { blk: 999, r: 999, t: 9 };
     for (const s of L) {
       if (s.kind !== "mi") continue;
       const r = ji[s.key]; if (!r) continue;
-      if (r[2] === "blk") s.sub = "블록 · 짓기 모드(" + (c.isTouch ? "짓기 버튼" : "X") + ")에서 놓아요 · 팔면 개당 " + Ge(r[3] || 1) + "코인";
-      else if (r[2] === "t") { const t = MPI.tools[s.key]; s.sub = "도구 · 캘 때 알아서 써요" + (t ? " · 속도 ×" + t.speed : "") + " · 팔면 " + Ge(r[3] || 1) + "코인"; }
+      if (s.key === "tnt_b") s.sub = "한탕 도구 · 금고 문 앞에서 " + (c.isTouch ? "대화 버튼" : "F") + "으로 설치해요 · 팔면 개당 " + Ge(r[3] || 1) + "코인";
+      else if (r[2] === "blk") s.sub = "블록 · 제작 재료 · 팔면 개당 " + Ge(r[3] || 1) + "코인";
+      else if (r[2] === "t") { const t = MPI.tools[s.key]; s.sub = "도구 · 광석 · 금고 문을 캘 때 알아서 써요" + (t ? " · 속도 ×" + t.speed : "") + " · 팔면 " + Ge(r[3] || 1) + "코인"; }
       else if (r[2] === "r") s.sub = "재료 · 제작(작업대 · 화로)에 써요 · 팔면 개당 " + Ge(r[3] || 1) + "코인";
     }
     return L;
   };
 }
-{ // 가방 칸 버튼: 쓰기 → 짓기에 들기 / 제작 열기, 팔기 값 바로잡기
+{ // 가방 칸 버튼: 쓰기 → 제작 열기, 팔기 값 바로잡기
   const orig = rj;
   rj = function (act, ik) {
     const [kind, key] = String(ik).split(/:(.*)/);
     const r = kind === "mi" && ji[key];
     if (!r || !MP_MYKIND(r[2])) return orig.apply(this, arguments);
-    if (act === "use") {
-      if (r[2] === "blk") { Ms(!1); MP.build && MP.build.hold(key); }
-      else { Ms(!1); MP.craft && MP.craft.open(); }
-    } else if (act === "sell" || act === "sellall") {
+    if (act === "use") { Ms(!1); MP.craft && MP.craft.open(); }
+    else if (act === "sell" || act === "sellall") {
       const nn = act === "sell" ? 1 : mpHave(key);
       if (nn > 0) { mpTake(key, nn); Pt((r[3] || 1) * nn, 1); q("coin"); mpToast(r[1] + " " + r[0] + " ×" + nn + " 팔았어요 · 코인 +" + Ge((r[3] || 1) * nn), 1800); }
     }
@@ -313,8 +311,7 @@ MPI.cap = { blk: 999, r: 999, t: 9 };
       if (b) {
         const key = String(b.dataset.ik || "").split(/:(.*)/)[1];
         const r = ji[key];
-        if (r && r[2] === "blk") b.textContent = "짓기에 들기";
-        else if (r && (r[2] === "r" || r[2] === "t")) b.textContent = "제작 열기";
+        if (r && MP_MYKIND(r[2])) b.textContent = "제작 열기";
       }
     } catch (e) {}
     return r0;

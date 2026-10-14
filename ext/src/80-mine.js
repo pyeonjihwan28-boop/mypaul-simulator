@@ -1,6 +1,7 @@
 /* ───────────── 4단계 ②: 폐광 (광석 캐기) · 강아지 ─────────────
    폐광: 바깥 도시의 마크 '폐광 입구'(갱도 교차점)에서 F → 아주 먼 곳의 지하 갱도로 내려가요.
          굴 벽에 석탄 · 철 · 금 · 레드스톤 · 청금석 · 에메랄드 · 다이아몬드 광석 · 3시간마다 새 광석
+         광석 가까이에서 F(대화 버튼) → 가진 곡괭이로 캐요 (짓기 모드 없이 · 좋은 광석은 좋은 곡괭이)
    강아지: 떠돌이 강아지에게 뼈를 주면 친해져요 (마음 100) → 이름 짓기 → 따라다녀요 (최대 3마리) */
 
 // ── 폐광 ──
@@ -95,7 +96,6 @@ MINE.enter = at => {
   if (MINE.busy) return; MINE.busy = 1;
   if (MP.car && MP.car.on) MP.car.exit();
   if (MP.glide && MP.glide.on) MP.glide.stop();
-  if (BLD.on) BLD.toggle(false);
   const s = MINE.seedNow();
   if (s !== MINE.seed) { MINE.seed = s; for (const k of [...S.dmg.keys()]) { const [a, b] = k.split(",").map(Number); if (inMineChunk(a, b)) S.dmg.delete(k); } for (const [k, ch] of [...S.ch]) if (inMineChunk(ch.cx, ch.cz)) { try { jB(ch); } catch (e) {} S.ch.delete(k); } }
   fadeGo(() => {
@@ -104,14 +104,13 @@ MINE.enter = at => {
     P.x = MINE.spawn[0] + .5; P.z = MINE.spawn[1] + 3.5; P.y = 1; P.vy = 0; P.fly = 0; MINE.hold = 1;
     try { Lt("chestClose", 0, .5); q("door"); } catch (e) {}
     MINE.busy = 0; MP.onTeleport && MP.onTeleport();
-    setTimeout(() => mpToast("⛏️ 폐광 깊은 곳 · 벽에 박힌 광석을 곡괭이로 캐요 (" + (c.isTouch ? "짓기 버튼" : "X") + " → 꾹) · 엘리베이터로 지상에 올라가요", 4200), 900);
+    setTimeout(() => mpToast("⛏️ 폐광 깊은 곳 · 벽에 박힌 광석 가까이에서 " + (c.isTouch ? "대화 버튼" : ze("use")) + "으로 캐요 · 엘리베이터로 지상에 올라가요", 4200), 900);
     if (!MINE.firstGift) { MINE.firstGift = 1; if (!MPI.bestTier("pickaxe")) { xM("stone_pickaxe", 1, 1); setTimeout(() => mpToast("🎁 광부 아저씨가 돌 곡괭이를 빌려줬어요", 2600), 2200); } }
     MP.stat("mineVisits"); mpSave();
   });
 };
 MINE.exit = () => {
   if (MINE.busy) return; MINE.busy = 1;
-  if (BLD.on) BLD.toggle(false);
   fadeGo(() => {
     const P = c.P, b = MINE.back || MINE.nearestEnt() || [4, -120];
     P.x = b[0] + 1.5; P.z = b[1] + 1.5; P.y = ja(P.x, P.z, 4); P.vy = 0; MINE.hold = 2;
@@ -143,9 +142,33 @@ const entTags = () => {
     else if (s && s.parent !== S.root) S.root.add(s);
   }
 };
+// 광석 캐기: 가까운 광석에서 F (대화 버튼) — 폐광 · 용암 차원 (90-world 가 네더 광석을 더해요)
+MP.oreIds = new Set(ORES.map(([mc]) => MPI.newBlocks[mc]));
+const TIER = ["", "나무", "돌", "철", "다이아몬드", "네더라이트"];
+const oreFind = P => {   // 가로 2.6m · 발밑 ~ 머리 위 5칸 안 가장 가까운 광석
+  let best = null, bd = 1e9;
+  const x0 = Math.floor(P.x), z0 = Math.floor(P.z), y0 = Math.floor(P.y + .05);
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) for (let dy = -1; dy <= 5; dy++) {
+    const x = x0 + dx, yy = y0 + dy, z = z0 + dz, id = Hr(x, yy, z);
+    if (!MP.oreIds.has(id)) continue;
+    const h = Math.hypot(x + .5 - P.x, z + .5 - P.z); if (h > 2.6) continue;
+    const d = h + Math.abs(yy + .5 - (P.y + 1.2)) * .35;
+    if (d < bd) { bd = d; best = { x, y: yy, z, id }; }
+  }
+  return best;
+};
+MP.oreNear = (L, P) => {
+  const o = oreFind(P); if (!o) return;
+  const nm = (Kt[o.id] && Kt[o.id].n) || "광석", tm = BLD.mineTime(o.id);
+  let l, fn;
+  if (BLD.digging(o)) { l = "⛏️ " + nm + " 캐는 중…"; fn = () => {}; }
+  else if (tm.t >= 1e8) { l = "⛏️ " + nm + " · " + TIER[tm.need] + " 곡괭이 이상 필요"; fn = () => mpToast("⛏️ " + nm + "은(는) " + TIER[tm.need] + " 곡괭이 이상으로 캐요 · 블록폰 🔨 제작 · 엔더 택배 도구", 2400); }
+  else { l = "⛏️ " + nm + " 캐기" + (tm.tool ? " · " + mpNameOf(tm.tool.id) : ""); fn = () => BLD.dig(o, { t: tm.t, label: "⛏️ " + nm }); }
+  L.push({ x: o.x + .5, z: o.z + .5, y: P.y, r: 3, l, fn });
+};
 const mineNear = (L, P) => {
   if (!S.out) return;
-  if (MINE.in) { const [sx, sz] = MINE.spawn; if (Math.hypot(sx - P.x, sz - P.z) < 3.4) L.push({ x: sx, z: sz, y: P.y, r: 3.4, l: "🪜 엘리베이터 타고 지상으로", fn: MINE.exit }); return; }
+  if (MINE.in) { const [sx, sz] = MINE.spawn; MP.oreNear(L, P); if (Math.hypot(sx - P.x, sz - P.z) < 3.4) L.push({ x: sx, z: sz, y: P.y, r: 3.4, l: "🪜 엘리베이터 타고 지상으로", fn: MINE.exit }); return; }
   for (const e of MINE.ent.values()) if (Math.hypot(e[0] + .5 - P.x, e[1] + .5 - P.z) < 3) L.push({ x: e[0], z: e[1], y: P.y, r: 3, l: "⛏️ 폐광 깊은 곳으로 내려가기 (광석)", fn: () => MINE.enter(e) });
 };
 const mineMarks = (ctx, X, Z, big) => {
@@ -155,7 +178,7 @@ const mineMarks = (ctx, X, Z, big) => {
   ctx.restore();
 };
 // 블록폰 미션 앱 맨 아래에 폐광 안내
-{ const prev = ST.phoneHtml; ST.phoneHtml = () => prev() + `<div class="mpcard"><b>⛏️ 폐광 (광석 캐기)</b><span class="mpsub">${MINE.in ? "지금 폐광 안이에요 · 엘리베이터로 올라가요" : "마크 폐광 입구 교차점에서 F · 3시간마다 새 광석"}</span>${MINE.in ? "" : `<button class="mpbtn" data-mp="minego">길 안내</button>`}</div>`; }
+{ const prev = ST.phoneHtml; ST.phoneHtml = () => prev() + `<div class="mpcard"><b>⛏️ 폐광 (광석 캐기)</b><span class="mpsub">${MINE.in ? "지금 폐광 안이에요 · 광석 가까이에서 캐요 · 엘리베이터로 올라가요" : "마크 폐광 입구 교차점에서 내려가요 · 곡괭이 필요 · 3시간마다 새 광석"}</span>${MINE.in ? "" : `<button class="mpbtn" data-mp="minego">길 안내</button>`}</div>`; }
 MP.click.minego = () => { const e = MINE.nearestEnt(); if (!e) return mpToast("⛏️ 근처에 폐광이 없어요", 1600); try { Oi.on = 1; Oi.x = e[0]; Oi.z = e[1]; } catch (x) {} PH.close(); mpToast("📍 가까운 폐광 입구로 길 안내 · " + Ge(Math.round(Math.hypot(e[0] - c.P.x, e[1] - c.P.z))) + "m", 2400); };
 
 // ── 강아지 ──
@@ -268,7 +291,7 @@ ST.chat = (prev => k => k === "mina" && O() < .35 ? "북쪽 마크 폐광 입구
 
 de.add({
   id: "mp_mine", name: "폐광 · 강아지", need: ["mp_ride", "animal", "mobs"],
-  gives: "MP.mine 폐광 차원 (enter · exit · 광석 · 3시간마다 새로) · MP.dogs 강아지 (뼈 → 마음 100 → 이름 · 따라다니기 · 앉아)",
+  gives: "MP.mine 폐광 차원 (enter · exit · 광석 F로 캐기 · 3시간마다 새로) · MP.oreNear(L, P) 광석 F · MP.oreIds · MP.dogs 강아지 (뼈 → 마음 100 → 이름 · 따라다니기 · 앉아)",
   chunkGen: mineGen, near: (L, P) => { mineNear(L, P); dogNear(L, P); },
   tick: dt => { mineTick(dt); dogTick(dt); if ((MINE.tt = (MINE.tt || 0) - dt) <= 0) { MINE.tt = 1; entTags(); } },
   where: () => (MINE.in ? "⛏️ 폐광 깊은 곳" : null),

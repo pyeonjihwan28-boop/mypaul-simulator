@@ -1,9 +1,9 @@
 /* ───────────── 2단계: 내 땅 · 내 집 · 농사 ─────────────
-   땅 한 칸 = 16×16 (마크 청크 크기). 짓기 팔레트의 🏠 땅 · 휴대폰 부동산 앱에서 사요.
-   땅 안에 놓은 블록 · 캔 자리는 따로 저장해서 오래 남아요. 친구 땅에는 못 지어요(허락하면 같이).
-   침대를 놓고 누르면 그 자리가 집 (쓰러지면 병원 대신 집에서 · 치료비 없음). */
+   땅 한 칸 = 16×16 (마크 청크 크기). 블록폰 🏠 부동산 앱에서 사요.
+   땅을 사면 선 자리에 🛏️ 침대(= 집 · 쓰러지면 병원 대신 집에서 · 치료비 없음)와 바라보는 쪽에 🌱 밭 3×3 이 생겨요 (짓기 없이 게임이 놓아요).
+   밭 가까이에서 F(대화 버튼): 씨앗 심기 · 다 자란 작물 거두기 · 뼛가루 뿌리기. 땅 안 부서진 칸은 따로 저장해서 오래 남아요. */
 
-const LOT = (MP.lot = { mine: [], max: 8, base: 2000, peers: new Map(), spawn: null, share: 0, dmgs: {} });
+const LOT = (MP.lot = { mine: [], max: 8, base: 2000, peers: new Map(), spawn: null, dmgs: {} });
 const LOT_MUL = { down: 3, apt: 2, town: 1.6, front: 1.4, park: 1.3, house: 1, ind: .8, farm: .6 };
 const LOT_NAME = { down: "도심", apt: "아파트 단지", town: "상가 거리", front: "학교 앞 거리", park: "공원", house: "주택가", ind: "공장 지대", farm: "논밭" };
 LOT.g = (x, z) => [Math.floor(x / 16), Math.floor(z / 16)];
@@ -34,7 +34,9 @@ LOT.buy = () => {
   LOT.mine.push({ gx, gz, t: Date.now(), z: LOT.zone(gx, gz) });
   try { on("내 땅이 생겼어요", LOT_NAME[LOT.zone(gx, gz)] + " · 16×16 · 코인 -" + Ge(pr), "pass"); } catch (e) {}
   q("win");
-  if (first) { xM("red_bed", 1, 1); xM("chest", 1, 1); xM("wheat_seeds", 8, 1); xM("beetroot_seeds", 4, 1); xM("wooden_hoe", 1, 1); setTimeout(() => mpToast("🎁 첫 땅 선물: 침대 · 상자 · 밀 씨앗 8 · 비트 씨앗 4 · 나무 괭이", 3800), 1800); }
+  const hs = LOT.homestead(gx, gz);
+  if (first) { xM("wheat_seeds", 8, 1); xM("beetroot_seeds", 4, 1); }
+  setTimeout(() => mpToast((hs.bed ? "🛏️ 선 자리에 침대가 생겼어요 · 여기가 이제 집이에요" : "🛏️ 침대 놓을 자리가 없었어요") + (hs.farm ? " · 🌱 밭 " + hs.farm + "칸 — 밭 가까이에서 " + useK() + "로 씨앗을 심어요" : "") + (first ? " · 🎁 첫 땅 선물: 밀 씨앗 8 · 비트 씨앗 4" : ""), 4600), 1800);
   MP.onLot && MP.onLot("buy", gx, gz);
   mpSave(); LOT.render();
 };
@@ -42,9 +44,10 @@ LOT.sell = i => {
   const l = LOT.mine[+i]; if (!l) return;
   const back = Math.round(LOT.base * (LOT_MUL[l.z] || 1) / 2 / 10) * 10;
   LOT.mine.splice(+i, 1); Pt(back, 1);
-  mpToast("🏠 땅을 팔았어요 · 코인 +" + Ge(back) + " (지은 건 그대로 남지만 이제 보호되지 않아요)", 3000);
+  mpToast("🏠 땅을 팔았어요 · 코인 +" + Ge(back) + " (침대 · 밭은 그대로 남아요)", 3000);
   mpSave(); LOT.render();
 };
+const useK = () => (c.isTouch ? "대화 버튼" : ze("use"));
 LOT.go = i => {
   const l = LOT.mine[+i]; if (!l) return;
   try { Oi.on = 1; Oi.x = l.gx * 16 + 8; Oi.z = l.gz * 16 + 8; NB?.(); } catch (e) {}
@@ -55,24 +58,19 @@ LOT.render = () => {
   const here = LOT.mineAt(P.x, P.z);
   const top = !S.out ? `<div class="mpnote">교문 밖 바깥 도시에서 땅을 살 수 있어요. 땅 한 칸은 16×16 (마크 청크 크기)이에요.</div>`
     : `<div class="mprow"><span class="ic">🏠</span><span class="tx"><b>지금 서 있는 땅 · ${LOT_NAME[zone] || zone}</b><span class="mpsub">칸 (${gx}, ${gz}) · 16×16 · ${here ? "내 땅이에요" : why || "값 " + Ge(pr) + "코인"}</span></span><span class="bt">${!why ? `<button class="mpbtn pri" data-mp="lotbuy">사기 · ${Ge(pr)}</button>` : ""}</span></div>`;
-  const list = LOT.mine.map((l, i) => { const d = Math.round(Math.hypot(l.gx * 16 + 8 - P.x, l.gz * 16 + 8 - P.z)); return `<div class="mprow"><span class="ic">🏡</span><span class="tx"><b>${LOT_NAME[l.z] || "땅"} (${l.gx}, ${l.gz})</b><span class="mpsub">${Ge(d)}m 떨어져 있어요</span></span><span class="bt"><button class="mpbtn" data-mp="lotgo:${i}">길 안내</button><button class="mpbtn" data-mp="lotsell:${i}">팔기</button></span></div>`; }).join("") || `<div class="mpnote">아직 땅이 없어요. 땅을 사면 그 안에 지은 건 오래 남고, 친구가 함부로 부수거나 짓지 못해요.</div>`;
-  const home = LOT.spawn ? `🛏️ 집: (${LOT.spawn.x}, ${LOT.spawn.y}, ${LOT.spawn.z}) · 바깥 도시에서 쓰러지면 여기서 깨어나요 (치료비 없음)` : "🛏️ 집이 아직 없어요 — 침대를 놓고 F(대화 버튼)로 누르면 집이 돼요";
-  Br(`<i data-view="mplot" hidden></i><h2>🏠 내 땅 · 부동산</h2>${top}<div class="mpnote">${home}</div><div class="mpnote">같이 짓기: <b>${LOT.share ? "켜짐 — 친구도 내 땅에 지을 수 있어요" : "꺼짐 — 내 땅은 나만 지어요"}</b> <button class="mpbtn" data-mp="lotshare">${LOT.share ? "끄기" : "켜기"}</button></div><div class="mplist">${list}</div>`, "mplw");
+  const list = LOT.mine.map((l, i) => { const d = Math.round(Math.hypot(l.gx * 16 + 8 - P.x, l.gz * 16 + 8 - P.z)); return `<div class="mprow"><span class="ic">🏡</span><span class="tx"><b>${LOT_NAME[l.z] || "땅"} (${l.gx}, ${l.gz})</b><span class="mpsub">${Ge(d)}m 떨어져 있어요</span></span><span class="bt"><button class="mpbtn" data-mp="lotgo:${i}">길 안내</button><button class="mpbtn" data-mp="lotsell:${i}">팔기</button></span></div>`; }).join("") || `<div class="mpnote">아직 땅이 없어요. 땅을 사면 선 자리에 🛏️ 침대(집)가, 바라보는 쪽에 🌱 밭 3×3 이 생겨요.</div>`;
+  const home = LOT.spawn ? `🛏️ 집: (${LOT.spawn.x}, ${LOT.spawn.y}, ${LOT.spawn.z}) · 바깥 도시에서 쓰러지면 여기서 깨어나요 (치료비 없음)` : "🛏️ 집이 아직 없어요 — 땅을 사면 침대가 생기고 그곳이 집이 돼요";
+  Br(`<i data-view="mplot" hidden></i><h2>🏠 내 땅 · 부동산</h2>${top}<div class="mpnote">${home}</div><div class="mpnote">🌱 밭 가까이에서 ${useK()}: 씨앗 심기 · 다 자란 작물 거두기 · 뼛가루 뿌리기 (씨앗은 엔더 택배 농사)</div><div class="mplist">${list}</div>`, "mplw");
 };
 MP.click.lotbuy = () => LOT.buy();
 MP.click.lotsell = i => LOT.sell(i);
 MP.click.lotgo = i => LOT.go(i);
-MP.click.lotshare = () => { LOT.share = LOT.share ? 0 : 1; mpSave(); LOT.render(); };
 MP.click.lot = () => LOT.render();
-
-// 친구 땅에는 못 짓고 못 캐요 (같이 짓기를 켠 친구는 괜찮아요)
-MP.canPlaceHere = (x, yy, z) => { const p = LOT.peerAt(x + .5, z + .5); if (p && !p.share && !LOT.mineAt(x + .5, z + .5)) { mpToast("🏠 " + (p.nm || "친구") + " 님의 땅이에요", 1400); return false; } return true; };
-MP.canMineHere = tg => { const p = LOT.peerAt(tg.x + .5, tg.z + .5); if (p && !p.share && !LOT.mineAt(tg.x + .5, tg.z + .5)) { if (mpNow() - (LOT.warnT || 0) > 1500) { LOT.warnT = mpNow(); mpToast("🏠 " + (p.nm || "친구") + " 님의 땅이에요", 1400); } return false; } return true; };
 
 // 땅 안에서 캔 자리(부서진 칸)는 따로 기억해요 (도시 저장은 최근 300청크만)
 const lotCellsOf = (l) => { const out = []; const x0 = l.gx * 16, z0 = l.gz * 16; const key = mpKeyOf(Math.floor(x0 / 64), Math.floor(z0 / 64)); const dm = S.dmg.get(key); if (!dm) return [key, out]; for (const li of dm) { const x = Math.floor(x0 / 64) * 64 + (li % 64), z = Math.floor(z0 / 64) * 64 + ((li >> 6) % 64); if (x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16) out.push(li); } return [key, out]; };
 
-// 땅 테두리 (짓기 모드거나 가까이 있을 때)
+// 땅 테두리 (가까이 있을 때 · 부동산 창을 열면 지금 선 칸도 흰색으로)
 const LOTV = { lines: [] };
 const lotBorders = () => {
   if (!Ye) return;
@@ -80,7 +78,8 @@ const lotBorders = () => {
   if (S.out) {
     for (const l of LOT.mine) if (Math.hypot(l.gx * 16 + 8 - P.x, l.gz * 16 + 8 - P.z) < 70) show.push([l.gx, l.gz, 0xf5c542]);
     for (const p of LOT.peers.values()) for (const l of p.lots || []) if (Math.hypot(l[0] * 16 + 8 - P.x, l[1] * 16 + 8 - P.z) < 70) show.push([l[0], l[1], 0x7fb6ff]);
-    if (BLD.on && !LOT.mineAt(P.x, P.z) && !LOT.peerAt(P.x, P.z)) { const [gx, gz] = LOT.g(P.x, P.z); show.push([gx, gz, 0xffffff, 1]); }
+    const lotOpen = c.menuOn && J("mcard") && J("mcard").querySelector('[data-view="mplot"]');
+    if (lotOpen && !LOT.mineAt(P.x, P.z) && !LOT.peerAt(P.x, P.z)) { const [gx, gz] = LOT.g(P.x, P.z); show.push([gx, gz, 0xffffff, 1]); }
   }
   while (LOTV.lines.length < show.length) {
     const g = new v.BufferGeometry().setFromPoints([new v.Vector3(0, 0, 0), new v.Vector3(16, 0, 0), new v.Vector3(16, 0, 16), new v.Vector3(0, 0, 16), new v.Vector3(0, 0, 0)]);
@@ -95,7 +94,7 @@ const lotBorders = () => {
 
 // ── 집 (침대) ──
 const BED = MPI.newBlocks.red_bed;
-const homeSet = s => { LOT.spawn = { x: s.x, y: s.y, z: s.z }; mpSave(); mpToast("🛏️ 여기가 이제 집이에요 · 바깥 도시에서 쓰러지면 여기서 깨어나요", 2600); try { Lt("level", 0, 1.2); } catch (e) {} };
+const homeSet = (s, quiet) => { LOT.spawn = { x: s.x, y: s.y, z: s.z }; mpSave(); if (quiet) return; mpToast("🛏️ 여기가 이제 집이에요 · 바깥 도시에서 쓰러지면 여기서 깨어나요", 2600); try { Lt("level", 0, 1.2); } catch (e) {} };
 const homeOk = () => LOT.spawn && Hr(LOT.spawn.x, LOT.spawn.y, LOT.spawn.z) === BED;
 { // 쓰러졌을 때 병원 대신 집에서
   const orig = XB;
@@ -130,38 +129,81 @@ ji.melon_slice = ["수박 조각", "🍉", "f", "apple", 2];
 const FARMLAND = MPI.newBlocks.farmland;
 const fKey = (x, yy, z) => x + "," + yy + "," + z;
 FARM.stage = f => { const d = FARM.grow[f.k] || 300; const rain = (xt && xt.k > .3) ? 1.6 : 1; return Math.min(3, Math.floor((Date.now() - f.t0) / 1000 * rain / (d / 3))); };
-MP.usable = it => /_hoe$/.test(it) || Object.values(CROPS).some(cr => cr.seed === it) || it === "white_dye" || (MP.usable2 && MP.usable2(it));
-MP.useItem = (tg, it) => {
-  // 괭이: 흙 · 잔디 블록 · 땅 → 밭
-  if (/_hoe$/.test(it)) {
-    if (tg.ground) { if (Hr(tg.px, tg.py, tg.pz)) return true; if (!MP.canPlaceHere(tg.px, tg.py, tg.pz)) return true; BLD.setBlock(tg.px, tg.py, tg.pz, FARMLAND); mpNet("mp", [tg.px, tg.py, tg.pz, FARMLAND]); try { Lt("st_grass", 0); } catch (e) {} return true; }
-    const b = Kt[tg.id];
-    if (b && /^(dirt|grass_block)$/.test(b.mc) && !Hr(tg.x, tg.y + 1, tg.z)) { if (!MP.canPlaceHere(tg.x, tg.y, tg.z)) return true; BLD.setBlock(tg.x, tg.y, tg.z, 0); BLD.setBlock(tg.x, tg.y, tg.z, FARMLAND); mpNet("mp", [tg.x, tg.y, tg.z, FARMLAND]); try { Lt("st_grass", 0); } catch (e) {} return true; }
-    mpToast("🔨 괭이는 흙 · 잔디 블록이나 맨땅에 써요", 1400); return false;
+// 밭 가까이에서 F (대화 버튼): 심기 · 거두기 · 뼛가루 — 가까운 밭 칸을 한꺼번에
+const farmNear = P => {
+  const out = [], x0 = Math.floor(P.x), z0 = Math.floor(P.z), y0 = Math.round(P.y);
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) for (let dy = -2; dy <= 1; dy++) {
+    const x = x0 + dx, yy = y0 + dy, z = z0 + dz;
+    if (Hr(x, yy, z) !== FARMLAND) continue;
+    const d = Math.hypot(x + .5 - P.x, z + .5 - P.z); if (d > 3.2) continue;
+    const up = Hr(x, yy + 1, z), b = up && Kt[up];
+    out.push({ x, y: yy, z, d, up, crop: b && b.crop ? b : null });
   }
-  // 씨앗: 밭 위에
-  const crop = Object.keys(CROPS).find(k => CROPS[k].seed === it);
-  if (crop) {
-    if (tg.id !== FARMLAND) { mpToast("🌱 씨앗은 밭 위에 심어요 (괭이로 밭을 만들어요)", 1600); return false; }
-    const x = tg.x, yy = tg.y + 1, z = tg.z;
-    if (Hr(x, yy, z)) return true;
-    mpTake(it, 1);
-    FARM.cells[fKey(x, yy, z)] = { k: crop, t0: Date.now() };
-    BLD.setBlock(x, yy, z, FARM.ids[crop][0]); mpNet("mp", [x, yy, z, FARM.ids[crop][0]]);
-    try { Lt("st_grass", 0, 1.3); } catch (e) {}
-    return true;
+  return out.sort((a, b) => a.d - b.d);
+};
+const farmSeed = () => { let best = null; for (const k of Object.keys(CROPS)) { const s = CROPS[k].seed; if (mpHave(s) > 0 && (!best || mpHave(s) > mpHave(best))) best = s; } return best; };
+FARM.plant = (cells, seed) => {
+  const crop = Object.keys(CROPS).find(k => CROPS[k].seed === seed); if (!crop) return 0;
+  let n = 0;
+  for (const f of cells) {
+    if (f.up || !mpHave(seed)) continue;
+    const yy = f.y + 1; mpTake(seed, 1); n++;
+    FARM.cells[fKey(f.x, yy, f.z)] = { k: crop, t0: Date.now() };
+    BLD.setBlock(f.x, yy, f.z, FARM.ids[crop][0]); mpNet("mp", [f.x, yy, f.z, FARM.ids[crop][0]]);
   }
-  // 하얀색 염료(뼛가루): 작물이 쑥
-  if (it === "white_dye") {
-    let k = fKey(tg.x, tg.y, tg.z), f = FARM.cells[k];
-    if (!f && tg.id === FARMLAND) { k = fKey(tg.x, tg.y + 1, tg.z); f = FARM.cells[k]; if (f) tg = { x: tg.x, y: tg.y + 1, z: tg.z }; }
-    if (!f) { mpToast("🦴 뼛가루(하얀색 염료)는 작물에 써요", 1400); return false; }
-    if (FARM.stage(f) >= 3) return true;
-    mpTake(it, 1); f.t0 -= (FARM.grow[f.k] || 300) / 3 * 1000 * (1 + O());
-    MP.fx(tg.x + .5, tg.y + .3, tg.z + .5, [.55, 1, .45], 10);
-    FARM.tick(true); return true;
+  if (n) { try { Lt("st_grass", 0, 1.3); } catch (e) {} mpToast("🌱 " + CROPS[crop].n + " " + n + "칸 심었어요 · 다 자라면 " + useK() + "로 거둬요 (비 오면 더 빨리)", 2400); mpSave(); }
+  return n;
+};
+FARM.harvest = cells => {
+  let n = 0;
+  for (const f of cells) { if (!f.crop || f.crop.st < 3) continue; BLD.breakAt({ x: f.x, y: f.y + 1, z: f.z, id: f.up }); n++; }
+  if (n) { mpToast("🌾 " + n + "칸 거뒀어요 · 씨앗을 다시 심어요", 1600); mpSave(); }
+  return n;
+};
+FARM.bone = cells => {
+  let n = 0;
+  for (const f of cells) {
+    if (!f.crop || f.crop.st >= 3 || !mpHave("white_dye")) continue;
+    const cell = FARM.cells[fKey(f.x, f.y + 1, f.z)]; if (!cell) continue;
+    mpTake("white_dye", 1); n++;
+    cell.t0 -= (FARM.grow[cell.k] || 300) / 3 * 1000 * (1 + O());
+    MP.fx(f.x + .5, f.y + 1.3, f.z + .5, [.55, 1, .45], 8);
   }
-  return MP.useItem2 ? MP.useItem2(tg, it) : false;
+  if (n) { FARM.tick(true); mpToast("🦴 뼛가루를 " + n + "칸에 뿌렸어요 · 작물이 쑥!", 1600); mpSave(); }
+  return n;
+};
+const nearFarm = (L, P) => {
+  const cells = farmNear(P); if (!cells.length) return;
+  const ripe = cells.filter(f => f.crop && f.crop.st >= 3), empty = cells.filter(f => !f.up), grow = cells.filter(f => f.crop && f.crop.st < 3);
+  const seed = farmSeed(), a = cells[0];
+  let l, fn;
+  if (ripe.length) { l = "🌾 다 자란 작물 거두기 (" + ripe.length + "칸)"; fn = () => FARM.harvest(ripe); }
+  else if (empty.length && seed) { l = "🌱 " + mpNameOf(seed) + " 심기 (" + Math.min(empty.length, mpHave(seed)) + "칸)"; fn = () => FARM.plant(empty, seed); }
+  else if (grow.length && mpHave("white_dye")) { l = "🦴 뼛가루 뿌리기 (" + Math.min(grow.length, mpHave("white_dye")) + "칸)"; fn = () => FARM.bone(grow); }
+  else if (empty.length) { l = "🌱 빈 밭 · 씨앗이 필요해요"; fn = () => mpToast("🌱 씨앗은 블록폰 엔더 택배(농사)에서 사요 · 거둔 작물에서도 나와요", 2400); }
+  else { l = "🌱 작물이 자라는 중 (" + grow.length + "칸)"; fn = () => mpToast("🌱 다 자라면 " + useK() + "로 거둬요 · 비 오면 더 빨리 · 뼛가루(하얀색 염료)를 뿌리면 쑥", 2400); }
+  L.push({ x: a.x + .5, z: a.z + .5, y: P.y, r: 3.4, l, fn });
+};
+// 땅을 사면: 선 자리에 침대(집) · 바라보는 쪽(막히면 옆 · 뒤)에 밭 3×3 — 땅 안 · 빈 칸에만
+LOT.homestead = (gx, gz) => {
+  const P = c.P, bx = Math.floor(P.x), bz = Math.floor(P.z), by = Math.max(0, Math.round(P.y));
+  const inLot = (x, z) => x >= gx * 16 && x < gx * 16 + 16 && z >= gz * 16 && z < gz * 16 + 16;
+  const free = (x, z) => inLot(x, z) && ia(x + .5, z + .5) && !Hr(x, by, z) && !Hr(x, by + 1, z) && (by === 0 || !!Hr(x, by - 1, z));
+  let bed = null;
+  if (free(bx, bz)) { BLD.setBlock(bx, by, bz, BED, 0, 1); mpNet("mp", [bx, by, bz, BED]); bed = { x: bx, y: by, z: bz }; }
+  const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw);
+  const f0 = Math.abs(fx) > Math.abs(fz) ? [Math.sign(fx), 0] : [0, Math.sign(fz) || 1];
+  let best = [];
+  for (const [ux, uz] of [f0, [-f0[1], f0[0]], [f0[1], -f0[0]], [-f0[0], -f0[1]]]) {
+    const cells = [];
+    for (let a = 2; a <= 4; a++) for (let b = -1; b <= 1; b++) { const x = bx + ux * a - uz * b, z = bz + uz * a + ux * b; if (free(x, z)) cells.push([x, z]); }
+    if (cells.length > best.length) best = cells;
+    if (best.length === 9) break;
+  }
+  for (const [x, z] of best) { BLD.setBlock(x, by, z, FARMLAND, 0, 1); mpNet("mp", [x, by, z, FARMLAND]); }
+  if (bed) homeSet(bed, 1);
+  try { Lt("st_grass", 0, 1); } catch (e) {}
+  return { bed: !!bed, farm: best.length };
 };
 FARM.tick = force => {
   for (const [k, f] of Object.entries(FARM.cells)) {
@@ -302,6 +344,7 @@ const nearHome = (L, P) => {
     const night = c.tod && c.tod.night > .5;
     L.push({ x: s.x + .5, z: s.z + .5, y: P.y, r: 2.6, l: night ? "🛏️ 자고 여기를 집으로 (밤 → 아침)" : "🛏️ 여기를 집으로 (밤엔 잘 수 있어요)", fn: () => { homeSet(s); if (night) try { kS(); } catch (e) {} } });
   }
+  nearFarm(L, P);
   nearAnimals(L, P);
 };
 
@@ -313,24 +356,18 @@ const lotMarks = (ctx, X, Z, big) => {
   ctx.restore();
 };
 
-// 팔레트에 🏠 땅 버튼
-{
-  const prev = BLD.renderBar;
-  BLD.renderBar = () => { prev(); if (!BLD.on) return; const b = mpEl("button", { class: "px", "data-mp": "lot", "aria-label": "내 땅" }, "<i>🏠</i>땅"); const bar = document.getElementById("mpbar"); const last = bar.querySelector('[data-mp="build"]'); bar.insertBefore(b, last); };
-}
-
 de.add({
   id: "mp_home", name: "내 땅 · 집 · 농사", need: ["mp_build", "mp_craft", "whp", "animal", "map"],
-  gives: "MP.lot 내 땅 (16×16 · 친구 보호 · 같이 짓기) · 침대 = 집 · MP.farm 작물 · 동물 번식 · 장식 블록 모형",
+  gives: "MP.lot 내 땅 (16×16 · 사면 침대(집) · 밭 3×3 이 생겨요) · 침대 = 집 · MP.farm 작물 (밭에서 F: 심기 · 거두기 · 뼛가루) · 동물 번식 · 장식 블록 모형",
   near: nearHome,
   tick: dt => {
     if ((LOT.bt = (LOT.bt || 0) - dt) <= 0) { LOT.bt = .5; lotBorders(); }
     if ((DECO.t = (DECO.t || 0) - dt) <= 0 || MP.decoDirty) { DECO.t = .6; DECO.sync(); }
   },
-  peerOut: e => { if (LOT.mine.length) e.mpl = LOT.mine.slice(0, 8).map(l => [l.gx, l.gz]); if (LOT.share) e.mplsh = 1; },
+  peerOut: e => { if (LOT.mine.length) e.mpl = LOT.mine.slice(0, 8).map(l => [l.gx, l.gz]); },
   peerIn: (s, r) => {
     const id = r && (r.id || r.nm) || s && s.nm; if (!id) return;
-    if (r && Array.isArray(r.mpl)) LOT.peers.set(id, { nm: s.nm || r.nm, lots: r.mpl.filter(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])).slice(0, 8), share: !!r.mplsh, t: Date.now() });
+    if (r && Array.isArray(r.mpl)) LOT.peers.set(id, { nm: s.nm || r.nm, lots: r.mpl.filter(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])).slice(0, 8), t: Date.now() });
     else if (LOT.peers.has(id) && r && !r.mpl) LOT.peers.delete(id);
   },
   miniMarks: (ctx, X, Z) => lotMarks(ctx, X, Z, 0),
@@ -338,15 +375,14 @@ de.add({
   save: e => {
     const dmg = {};
     for (const l of LOT.mine) { const [key, cells] = lotCellsOf(l); if (cells.length) dmg[key] = (dmg[key] || []).concat(cells); }
-    e.mph = { v: 1, mine: LOT.mine, spawn: LOT.spawn, share: LOT.share, dmg, farm: FARM.cells };
+    e.mph = { v: 1, mine: LOT.mine, spawn: LOT.spawn, dmg, farm: FARM.cells };
   },
   load: e => {
     const d = e && e.mph;
-    LOT.mine = []; LOT.spawn = null; LOT.share = 0; FARM.cells = {};
+    LOT.mine = []; LOT.spawn = null; FARM.cells = {};
     if (!d || typeof d !== "object") return;
     if (Array.isArray(d.mine)) LOT.mine = d.mine.filter(l => l && isFinite(l.gx) && isFinite(l.gz)).slice(0, LOT.max).map(l => ({ gx: l.gx | 0, gz: l.gz | 0, t: +l.t || 0, z: String(l.z || "house") }));
     if (d.spawn && isFinite(d.spawn.x)) LOT.spawn = { x: d.spawn.x | 0, y: d.spawn.y | 0, z: d.spawn.z | 0 };
-    LOT.share = d.share ? 1 : 0;
     if (d.farm && typeof d.farm === "object") for (const [k, f] of Object.entries(d.farm)) if (/^-?\d+,-?\d+,-?\d+$/.test(k) && f && CROPS[f.k]) FARM.cells[k] = { k: f.k, t0: +f.t0 || Date.now() };
     for (const [key, cells] of Object.entries(d.dmg || {})) { if (!/^-?\d+,-?\d+$/.test(key) || !Array.isArray(cells)) continue; let dm = S.dmg.get(key); if (!dm) S.dmg.set(key, (dm = new Set())); for (const li of cells) if (li >= 0) dm.add(li | 0); }
   },

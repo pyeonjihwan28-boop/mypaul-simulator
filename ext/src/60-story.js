@@ -52,7 +52,7 @@ const bankGen = (Q, cx, cz) => {
   Q.sp = (Q.sp || []).filter(a => !inZ(a[1], a[2]));
   for (const k of ["ride", "veh"]) Q[k] = (Q[k] || []).filter(a => !inZ(a.x, a.z));
   Q.mini = (Q.mini || []).filter(a => (a[3] - a[1]) * (a[4] - a[2]) > 400 || !ovZ(a[1], a[2], a[3], a[4]));
-  // 짓기
+  // 은행 건물
   const B = (x1, y1, z1, x2, y2, z2, mc, vault) => { const id = typeof mc === "number" ? mc : rn[mc]; if (!id) return; const b = [x1, y1, z1, x2, y2, z2, id, 63, 0]; b.bank = 1; if (vault) b.vault = 1; Q.bb.push(b); };
   const Qz = "quartz_block", GL = "glass", { x0, x1, z0, z1 } = BANK;
   // 뒤쪽 벽 (가운데는 금고 흑요석)
@@ -148,8 +148,8 @@ const npcTick = dt => {
 const M = (id, ch, t, giver, need, intro, steps, reward, outro) => ST.list.push({ id, ch, t, giver, need, intro, steps, reward, outro });
 const key = a => ze(a);
 M("m1", "1장", "외출증", "mina", null,
-  ["어? 마이폴 학생이네! 교문 밖으로 나온 거야? ㅋㅋ", "나는 블록 택배 사장 미나야. 이 도시는 전부 블록으로 되어 있어.", () => "짓기 모드(" + (c.isTouch ? "핫바 옆 🧱 짓기 버튼" : "X 키") + ")를 켜면 블록을 캐고 놓을 수 있어. 한번 해 볼래?"],
-  [{ k: "place", n: 3, t: "짓기 모드를 켜고 블록 3개 놓기" }, { k: "mine", n: 3, t: () => "블록 3개 캐기 (" + (c.isTouch ? "캐기 버튼 꾹" : "좌클릭 꾹") + ")" }, { k: "craft", item: "crafting_table", n: 1, t: "작업대 만들기 (짓기 칸의 🔨 제작)" }, { k: "talk", t: "미나 누나에게 돌아가기" }],
+  ["어? 마이폴 학생이네! 교문 밖으로 나온 거야? ㅋㅋ", "나는 블록 택배 사장 미나야. 이 도시는 전부 블록으로 되어 있어.", () => "곡괭이만 있으면 폐광에서 광석을 캘 수 있지. 블록폰(" + (c.isTouch ? "📱 폰 버튼" : ". 키") + ")의 🔨 제작 앱으로 하나 만들어 볼래?"],
+  [{ k: "craft", item: "stick", n: 4, give: [["oak_planks", 8]], t: "블록폰 🔨 제작에서 막대기 만들기 (판자 8개 줬어요)" }, { k: "craft", item: "wooden_pickaxe", n: 1, t: "나무 곡괭이 만들기 (판자 3 · 막대기 2)" }, { k: "talk", t: "미나 누나에게 돌아가기" }],
   { co: 300, xp: 60, items: [["oak_planks", 32]] }, ["오, 손이 빠른데? 다음엔 택배 일 좀 도와줘!"]);
 M("m2", "2장", "블록 택배", "mina", "m1",
   ["급한 택배가 두 개 있어! 엔더 택배는 빠른 게 생명이지.", () => "노란 기둥까지 시간 안에 가져다줘. 길가 공공 자전거나 내 탈것(" + (c.isTouch ? "탈것 버튼" : key("veh") + " 키") + ")을 타면 훨씬 빨라!"],
@@ -160,12 +160,12 @@ M("m3", "3장", "정비소 친구", "rench", "m2",
   [{ k: "ride", t: () => "탈것 타기 (" + (c.isTouch ? "탈것 버튼" : key("veh") + " 키") + " · 길가 공공 자전거나 내 탈것)" }, { k: "goto", at: () => snap(40, -186), t: "탈것 타고 노란 기둥까지", time: 120, r: 3.5, ride: 1 }, { k: "wanted", lv: 1, t: "수배 ★1 받기 (무기로 건물을 부숴요)" }, { k: "escape", t: "경찰 따돌리기 (★ 없애기)" }, { k: "talk", t: "렌치 형에게 돌아가기" }],
   { co: 900, xp: 160, unlock: "mech", car: 1 }, ["역시! 선물로 내가 만든 블록카 줄게. 블록폰 연락처에서 나한테 전화하면 바로 가져다줄게.", "튜닝하고 싶으면 정비소로 와. 엔진 · 타이어 · 니트로 다 돼!"]);
 M("m4", "4장", "금고 설계도", "doyun", "m3",
-  ["쉿. 다이아 은행 금고 얘기 들었어? 벽이 전부 흑요석이래.", "흑요석은 다이아몬드 곡괭이로만 캘 수 있어. 금고 문은 TNT로 날릴 수 있고.", "먼저 은행에 가서 금고 문 사진부터 찍어 와. 블록폰(📱) 카메라 알지?"],
-  [{ k: "goto", at: () => BANK.front, t: "다이아 은행 찾아가기", r: 4 }, { k: "photo", at: BANK.photo, t: "블록폰 카메라로 금고 문 사진 찍기 (은행 안에서)" }, { k: "have", any: [["diamond_pickaxe", 1], ["tnt_b", 1]], give: [["diamond", 3]], t: "다이아 곡괭이 만들기 (다이아 3개 줬어요 · 작업대) 또는 TNT 준비" }, { k: "talk", t: "도윤에게 돌아가기" }],
+  ["쉿. 다이아 은행 금고 얘기 들었어? 벽이 전부 흑요석이래.", "흑요석 벽은 못 뚫어. 대신 금고 문은 TNT로 날리거나 다이아몬드 곡괭이로 뜯을 수 있지.", "먼저 은행에 가서 금고 문 사진부터 찍어 와. 블록폰(📱) 카메라 알지?"],
+  [{ k: "goto", at: () => BANK.front, t: "다이아 은행 찾아가기", r: 4 }, { k: "photo", at: BANK.photo, t: "블록폰 카메라로 금고 문 사진 찍기 (은행 안에서)" }, { k: "have", any: [["diamond_pickaxe", 1], ["tnt_b", 1]], give: [["diamond", 3]], t: "다이아 곡괭이 만들기 (다이아 3개 줬어요 · 막대기 2 · 블록폰 🔨 제작) 또는 TNT 준비" }, { k: "talk", t: "도윤에게 돌아가기" }],
   { co: 1000, xp: 200, items: [["flint_and_steel", 1], ["tnt_b", 2]] }, ["완벽해. 까치 아저씨가 은행 앞에서 기다리고 있어. TNT 두 개랑 부싯돌도 챙겨 가."]);
 M("m5", "5장", "다이아 은행 한탕", "kkachi", "m4",
-  ["준비됐어? 금고 문을 TNT로 날리면 바로 ★4, 다이아 곡괭이로 조용히 캐면 조금 늦게 들켜.", "돈다발 4개 이상 챙기고 경찰을 완전히 따돌리면 성공이야. 같은 방 친구들도 같이 털 수 있어!"],
-  [{ k: "vault", t: "금고 열기 (TNT에 부싯돌과 부시 · 다이아 곡괭이)" }, { k: "grab", n: 4, time: 120, t: "금고 상자에서 돈다발 챙기기" }, { k: "escape", bags: 1, t: "돈다발 들고 경찰 따돌리기 (★ 없애기)" }],
+  ["준비됐어? 금고 문을 TNT로 날리면 바로 ★4, 다이아 곡괭이로 조용히 뜯으면 조금 늦게 들켜.", "돈다발 4개 이상 챙기고 경찰을 완전히 따돌리면 성공이야. 같은 방 친구들도 같이 털 수 있어!"],
+  [{ k: "vault", t: () => "금고 문 앞에서 " + (c.isTouch ? "대화 버튼" : key("use")) + " · TNT 또는 다이아 곡괭이로 열기" }, { k: "grab", n: 4, time: 120, t: "금고 상자에서 돈다발 챙기기" }, { k: "escape", bags: 1, t: "돈다발 들고 경찰 따돌리기 (★ 없애기)" }],
   { co: 2000, xp: 400, heist: 1 }, ["대박… 진짜 해냈네. 금고는 20분 뒤에 다시 차. 블록폰 미션 앱 확인해!"]);
 const M5H = { id: "m5h", ch: "한탕", t: "다이아 은행 또 털기", giver: "kkachi", need: "m5", intro: ["금고가 다시 찼어. 이번에도 조용히… 아니면 화끈하게?"], steps: ST.list[4].steps, reward: { co: 1000, xp: 250, heist: 1 }, outro: ["또 해냈네 ㅋㅋ 20분 뒤에 또 봐."] };
 const tx = v => (typeof v === "function" ? v() : v);
@@ -198,7 +198,7 @@ mpCss("mp-story-css", `
 .mpcutb{position:fixed;left:0;right:0;height:9vh;background:#000;z-index:44;pointer-events:none;display:none}
 #mpcutt{top:0}#mpcutd{bottom:0}
 body.mpcut .mpcutb{display:block}
-body.mpcut #hud,body.mpcut #mpbar,body.mpcut #mpbtnb,body.mpcut #mpphbtn,body.mpcut #qbar,body.mpcut #mcbar,body.mpcut #touch,body.mpcut #mpobj,body.mpcut #objm,body.mpcut #mpcross,body.mpcut #cross,body.mpcut #hotbar{visibility:hidden!important}
+body.mpcut #hud,body.mpcut #mpphbtn,body.mpcut #qbar,body.mpcut #mcbar,body.mpcut #touch,body.mpcut #mpobj,body.mpcut #objm,body.mpcut #mpdig,body.mpcut #cross,body.mpcut #hotbar{visibility:hidden!important}
 @media (max-height:480px){#mpobj{font-size:12px;padding:5px 12px}#mpdlg{padding:10px 14px;bottom:calc(10vh + env(safe-area-inset-bottom,0px))}#mpdlg .tx p{font-size:14px}#mpdlg .av{font-size:30px}}
 `);
 const objEl = mpEl("div", { id: "mpobj", "aria-live": "polite" });
@@ -229,7 +229,6 @@ ST.say = (k, lines, done) => {
   ST.cut = { k, lines: lines.map(tx), i: 0, done, a: 0 };
   document.body.classList.add("mpcut");
   c.menuOn = true; for (const kk in rr) rr[kk] = 0; try { document.exitPointerLock?.(); } catch (e) {}
-  if (BLD.on) BLD.mining = BLD.placing = false;
   dlgEl.querySelector(".av").textContent = g.ic; dlgEl.querySelector("b").textContent = g.n + (g.role ? " · " + g.role : "");
   dlgEl.classList.add("on"); ST.sayNext(0);
 };
@@ -321,7 +320,6 @@ MP.click.misquit = () => { ST.quit(); PH.render(); };
 ST.objText = () => {
   const s = ST.stepOf(), cu = ST.cur; if (!s) return "";
   let t = tx(s.t);
-  if (s.k === "place" || s.k === "mine") t += ` (${cu.prog}/${s.n})`;
   if (s.k === "craft") t += ` (${Math.min(cu.prog, s.n)}/${s.n})`;
   if (s.k === "grab") t += ` (${mpHave("cash_bag")}/${s.n})`;
   if (s.k === "talk") t = GV[ST.whoOf(s)].n + "에게 가서 " + (c.isTouch ? "대화 버튼" : key("use")) + " · " + t;
@@ -355,9 +353,7 @@ const stTick = dt => {
   else if (s.k === "vault") { if ((HEIST.ct = (HEIST.ct || 0) - dt) <= 0) { HEIST.ct = .25; if (HEIST.opened()) { HEIST.alarm(); ST.next(); } } }
   else if (s.k === "grab") { if (mpHave("cash_bag") >= s.n) ST.next(); }
 };
-{ // 놓기 · 캐기 · 만들기 · 사진 세기
-  const pP = MP.onPlace; MP.onPlace = (...a) => { pP && pP(...a); const s = ST.stepOf(); if (s && s.k === "place" && !ST.cut) { ST.cur.prog++; if (ST.cur.prog >= s.n) ST.next(); else ST.hud(); } };
-  const pB = MP.onBreak; MP.onBreak = (...a) => { pB && pB(...a); const s = ST.stepOf(); if (s && s.k === "mine" && !ST.cut) { ST.cur.prog++; if (ST.cur.prog >= s.n) ST.next(); else ST.hud(); } };
+{ // 만들기 · 사진 세기
   const pC = MP.onCraft; MP.onCraft = (o, n) => { pC && pC(o, n); const s = ST.stepOf(); if (s && s.k === "craft" && o === s.item) { ST.cur.prog += n; ST.hud(); } };
   const pPh = MP.onPhoto; MP.onPhoto = info => {
     pPh && pPh(info); const s = ST.stepOf(); if (!s || s.k !== "photo") return;
@@ -420,26 +416,59 @@ HEIST.reset = () => {
   };
   setTimeout(fix, 2500);
 };
-// TNT에 부싯돌과 부시로 불 붙이기 (4초 뒤 펑)
+// TNT 불 붙이기 (4초 뒤 펑) — 금고 문 앞 TNT · 친구가 붙인 TNT
 const TNTS = [];
-MP.usable2 = (prev => it => it === "flint_and_steel" || !!(prev && prev(it)))(MP.usable2);
-MP.useItem2 = (prev => (tg, it) => {
-  if (it === "flint_and_steel") {
-    if (tg.id !== rn.tnt) { mpToast("🔥 불을 붙일 TNT를 조준해요", 1400); return false; }
-    MP.light(tg.x, tg.y, tg.z, 1);
-    return false;
-  }
-  return prev ? prev(tg, it) : false;
-})(MP.useItem2);
-MP.light = (x, yy, z, mine) => {
+MP.light = (x, yy, z, mine, heist) => {
   if (Hr(x, yy, z) !== rn.tnt) return;
   BLD.setBlock(x, yy, z, 0, mine ? 0 : 1);
   if (mine) mpNet("mt", [x, yy, z]);
   const m = new v.Mesh(new v.BoxGeometry(.98, .98, .98), new v.MeshBasicMaterial({ color: 0xffffff }));
   m.position.set(x + .5, yy + .5, z + .5); S.root.add(m);
-  TNTS.push({ m, x: x + .5, y: yy + .5, z: z + .5, t: 4, mine });
+  TNTS.push({ m, x: x + .5, y: yy + .5, z: z + .5, t: 4, mine, heist });
   try { Lt("fuse", Math.hypot(x - c.P.x, z - c.P.z)); } catch (e) {}
   if (mine) mpToast("🧨 쉬이익… 4초 뒤에 터져요! 멀리 떨어져요", 1800);
+};
+// 금고 문: 한탕 중에 문 앞에서 F (대화 버튼) → 🧨 TNT로 날리기 (시끄럽게 · ★4) 또는 ⛏️ 다이아 곡괭이로 조용히 뜯기
+const VD = BANK.vdoor;
+const vdoorCells = () => { const L = []; for (let x = VD.x0; x < VD.x1; x++) for (let yy = 0; yy < VD.y1; yy++) if (Hr(x, yy, VD.z) === VDOOR) L.push([x, yy, VD.z]); return L; };
+const vdoorOff = () => { for (const [x, yy, z] of vdoorCells()) { BLD.setBlock(x, yy, z, 0); mpNet("mb", [x, yy, z]); } };
+const mpChip = (ok, t) => `<span class="mpchip ${ok ? "ok" : "no"}">${ok ? "✓" : "✕"} ${t}</span>`;
+HEIST.doorMenu = () => {
+  if (!ST.canTalk()) return;
+  const tnt = mpHave("tnt_b"), fl = mpHave("flint_and_steel") > 0, tm = BLD.mineTime(VDOOR), dia = tm.t < 1e8;
+  Br(`<i data-view="mpvault" hidden></i><h2>💰 금고 문 열기</h2><div class="mpnote">문이 열리면 금고 상자에서 돈다발 4개를 챙기고 경찰을 따돌려요</div><div class="mplist">`
+    + `<div class="mprow"><span class="ic">🧨</span><span class="tx"><b>TNT로 날리기</b><span class="mpsub">문 앞에 TNT를 놓고 불을 붙여요 · 4초 뒤 펑 · 바로 수배 ★4</span><span>${mpChip(tnt > 0, "TNT " + tnt + "개")} ${mpChip(fl, "부싯돌과 부시")}</span></span><span class="bt"><button class="mpbtn pri" data-mp="vtnt"${tnt && fl ? "" : " disabled"}>설치</button></span></div>`
+    + `<div class="mprow"><span class="ic">⛏️</span><span class="tx"><b>다이아 곡괭이로 조용히 뜯기</b><span class="mpsub">${dia ? "약 " + Math.ceil(tm.t) + "초 · " : ""}문이 열리고 9초 뒤에 경보가 울려요</span><span>${mpChip(dia, "다이아 곡괭이")}</span></span><span class="bt"><button class="mpbtn pri" data-mp="vdig"${dia ? "" : " disabled"}>뜯기</button></span></div>`
+    + `</div>`);
+};
+HEIST.plantTnt = () => {
+  if (!mpHave("tnt_b") || !mpHave("flint_and_steel")) return mpToast("🧨 TNT와 부싯돌과 부시가 있어야 해요 (블록폰 🔨 제작)", 2000);
+  const fz = VD.z + 1, spot = [VD.x0, VD.x1 - 1].find(x => !Hr(x, 0, fz));
+  if (spot == null) return mpToast("🧨 문 앞이 막혀 있어요", 1600);
+  mpTake("tnt_b", 1);
+  BLD.setBlock(spot, 0, fz, rn.tnt, 0, 1); mpNet("mp", [spot, 0, fz, rn.tnt]);
+  MP.light(spot, 0, fz, 1, 1); mpSave();
+};
+HEIST.digDoor = () => {
+  const tm = BLD.mineTime(VDOOR), cells = vdoorCells();
+  if (tm.t >= 1e8) return mpToast("⛏️ 다이아 곡괭이가 있어야 금고 문을 뜯어요 (다이아 3 · 막대기 2 · 블록폰 🔨 제작)", 2400);
+  if (!cells.length) return;
+  const [x, yy, z] = cells[0];
+  BLD.dig({ x, y: yy, z, id: VDOOR }, { t: tm.t, r: 3, label: "⛏️ 금고 문 뜯는 중", tag: "vault", snd: "st_metal", done: () => {
+    vdoorOff();
+    try { Lt("brk_stone", 0, .8); } catch (e) {}
+    MP.fx((VD.x0 + VD.x1) / 2, 1.5, VD.z + .5, [.85, .85, .9], 16, 2.2, .25);
+  } });
+};
+MP.click.vtnt = () => { Fi(); try { c.lockPointer?.(); } catch (e) {} HEIST.plantTnt(); };
+MP.click.vdig = () => { Fi(); try { c.lockPointer?.(); } catch (e) {} HEIST.digDoor(); };
+const vaultNear = (L, P) => {
+  const s = ST.stepOf();
+  if (!s || s.k !== "vault" || !HEIST.on || HEIST.open) return;
+  const fx = (VD.x0 + VD.x1) / 2, fz = VD.z + 1.3;
+  if (Math.hypot(P.x - fx, P.z - fz) > 3.2 || !vdoorCells().length) return;
+  const lit = TNTS.some(t => t.heist), busy = BLD.job && BLD.job.tag === "vault";
+  L.push({ x: fx, z: fz, y: P.y, r: 3.2, l: lit ? "🧨 곧 터져요! 멀리 떨어져요" : busy ? "⛏️ 금고 문 뜯는 중…" : "💰 금고 문 열기 (TNT · 다이아 곡괭이)", fn: () => { if (!lit && !busy) HEIST.doorMenu(); } });
 };
 const tntTick = dt => {
   for (const t of TNTS.slice()) {
@@ -448,6 +477,7 @@ const tntTick = dt => {
       t.m.parent && t.m.parent.remove(t.m); TNTS.splice(TNTS.indexOf(t), 1);
       if (Math.hypot(t.x - 102, t.z + 210.5) < 12) HEIST.tntT = mpNow();
       if (t.mine) try { fp(t.x, t.y, t.z, 4); Ne.shake = Math.max(Ne.shake || 0, .5); } catch (e) { console.warn("[마이폴 확장] TNT", e); }
+      if (t.heist) try { vdoorOff(); } catch (e) {}   // 금고 문 앞 TNT는 문을 꼭 날려요
     }
   }
 };
@@ -459,19 +489,6 @@ const tntTick = dt => {
     if (!isV) return prev(x, yy, z, st);
     if (!(HEIST.on && HEIST.open)) return mpToast(HEIST.on ? "🔒 금고 문부터 열어요" : "🔒 텅 빈 금고예요 · 까치의 한탕 미션 중에만 돈다발이 들어 있어요", 2200);
     return prev(x, yy, z, "mpvault");
-  };
-}
-// 은행 블록: 내가 놓은 것 · 한탕 중 금고 문과 흑요석만 캘 수 있어요
-{
-  const prev = MP.canMineHere;
-  MP.canMineHere = tg => {
-    if (prev && !prev(tg)) return false;
-    if (!inBank(tg.x + .5, tg.z + .5)) return true;
-    const kk = mpKeyOf(Math.floor(tg.x / 64), Math.floor(tg.z / 64)), li = Es(tg.x - Math.floor(tg.x / 64) * 64, tg.y, tg.z - Math.floor(tg.z / 64) * 64);
-    if ((BLD.put.get(kk) && BLD.put.get(kk).has(li)) || (BLD.rput.get(kk) && BLD.rput.get(kk).has(li))) return true;
-    if (HEIST.on && (tg.id === VDOOR || tg.id === VOBS)) return true;
-    if (mpNow() - (HEIST.warnT || 0) > 1600) { HEIST.warnT = mpNow(); mpToast(HEIST.on ? "🏦 금고 문이나 금고 흑요석 벽만 캘 수 있어요 (다이아 곡괭이)" : "🏦 다이아 은행은 한탕 미션 중에만 부술 수 있어요", 1800); }
-    return false;
   };
 }
 // 친구 따라 같이 털기 · 친구가 붙인 TNT
@@ -521,6 +538,7 @@ const barTick = dt => {
 // ── 가까이 가면: 의뢰인과 말하기 ──
 const stNear = (L, P) => {
   if (!S.out || ST.cut) return;
+  vaultNear(L, P);
   for (const n of Object.values(NPCS)) {
     if (Math.hypot(n.x - P.x, n.z - P.z) > 2.6) continue;
     const g = GV[n.k], s = ST.stepOf();
@@ -532,9 +550,9 @@ const stNear = (L, P) => {
 };
 ST.chat = k => {
   const L = {
-    mina: ["엔더 택배는 순간이동 배송이야. 진짜야!", "블록은 곡괭이로 캐야 아이템이 나와. 무기로 부수면 코인만 나오고!", "땅을 사면 그 안에 지은 건 오래 남아. 블록폰 부동산 앱 봐 봐!"],
-    rench: ["정비소 '괴산 커스텀'은 24시간 영업이지 ㅋㅋ", "수배 ★이 있으면 택시가 안 태워 줘. 정비사한테 도색부터 해!", "경찰이 너무 많으면 블록으로 바리케이드를 쌓아 봐. 오래는 못 버텨도."],
-    doyun: ["흑요석은 TNT로 안 터져. 다이아 곡괭이가 답이야.", "금고 문은 철이라 TNT로 날릴 수 있어. 대신 바로 ★4.", "찍은 사진은 블록폰 사진첩에 남아."],
+    mina: ["엔더 택배는 순간이동 배송이야. 진짜야!", "폐광에서 곡괭이로 광석을 캐면 좋은 재료가 나와. 무기로 건물을 부수면 코인만 나오고!", "땅을 사면 침대랑 작은 밭이 생겨. 블록폰 부동산 앱 봐 봐!"],
+    rench: ["정비소 '괴산 커스텀'은 24시간 영업이지 ㅋㅋ", "수배 ★이 있으면 택시가 안 태워 줘. 정비사한테 도색부터 해!", "경찰이 너무 많으면 폐광으로 내려가 봐. 거기까진 못 따라와!"],
+    doyun: ["흑요석 벽은 TNT로도 안 뚫려. 금고 문을 노려.", "금고 문은 TNT로 날리면 바로 ★4, 다이아 곡괭이로 뜯으면 조용하지.", "찍은 사진은 블록폰 사진첩에 남아."],
     kkachi: ["한탕은 같이 하면 더 쉬워. 같은 방 친구를 불러!", "돈다발은 경찰을 다 따돌려야 진짜 코인이 돼.", "다이아 은행 금고는 20분마다 다시 찬다더라."],
   }[k] || ["…"];
   return L[O() * L.length | 0];
@@ -565,7 +583,7 @@ const stMarks = (ctx, X, Z, big) => {
 
 de.add({
   id: "mp_story", name: "이야기 미션 · 한탕 · 바리케이드", need: ["mp_phone", "mp_craft", "want", "boom", "map"],
-  gives: "MP.story 5장 미션 (가상 인물 미나 · 렌치 · 도윤 · 까치) · MP.heist 다이아 은행 금고 · MP.bank 은행 · TNT 불 붙이기 · 경찰이 바리케이드 부수기",
+  gives: "MP.story 5장 미션 (가상 인물 미나 · 렌치 · 도윤 · 까치) · MP.heist 다이아 은행 금고 (문 앞에서 F: TNT · 다이아 곡괭이) · MP.bank 은행 · 경찰이 놓인 블록(바리케이드) 부수기",
   chunkGen: bankGen, grid: bankGrid, net: stNet, near: stNear,
   tick: dt => {
     if ((ST.nt = (ST.nt || 0) - dt) <= 0) { ST.nt = 1; npcSync(); }
