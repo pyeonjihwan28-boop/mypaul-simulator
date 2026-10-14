@@ -371,10 +371,18 @@ BLD.dropOf = (bid, tool) => {
   const n = (b.d0 | 0) + Math.floor(O() * ((b.d1 | 0) - (b.d0 | 0) + 1));
   return n > 0 ? [d, n] : null;
 };
+// 캔 블록 · 광석 · 작물 · 부순 상자 안 물건은 바로 가방으로 (V119)
+// 예전엔 그 자리에 떠 있는 아이템으로 떨어뜨렸는데, 폐광 굴 벽 · 천장 있는 곳에서는 천장 위로 튀어 올라가 못 주웠어요
 BLD.giveDrop = (it, n, x, yy, z) => {
   const r = ji[it]; if (!r || !(n > 0)) return;
   if (r[2] === "c") { Pt((r[3] || 2) * n, 1); return; }
-  if (["blk", "r", "t", "b", "x", "m", "k"].includes(r[2])) { MP._myDrop = 1; try { L_(it, n, x, yy, z); } finally { MP._myDrop = 0; } }
+  if (["blk", "r", "t", "b", "x", "m", "k"].includes(r[2])) {
+    const mine = r[2] === "blk" || r[2] === "r" || r[2] === "t";
+    const got = xM(it, n, 1);   // 주울 때처럼 조용히 (가방이 가득 차면 xM 이 알려 줘요)
+    if (mine && !got) return;
+    try { Lt("pop", 0, 1.1); } catch (e) {}
+    if (r[2] === "r") mpToast(r[1] + " " + r[0] + " +" + n, 1200);   // 광석에서 나온 재료 · 작물만 알려요 (블록은 팔레트 숫자로 보여요)
+  }
   else if (r[2] === "f") { c.FI = c.FI || {}; const k = r[3]; c.FI[k] = Math.min(999, (c.FI[k] | 0) + n); mpToast(r[1] + " " + r[0] + " +" + n + " (음식 가방)", 1400); }
 };
 BLD.breakAt = (tg, silent) => {
@@ -413,7 +421,7 @@ MP.boomCoins = 0;
   const orig = L_;
   L_ = function (id, n) {
     const k = ji[id] && ji[id][2];
-    if (!MP._myDrop && !BLD.on && (k === "blk" || k === "r" || k === "t")) { MP.boomCoins += (+ji[id][3] || 1) * (n | 0 || 1); return; }
+    if (!BLD.on && (k === "blk" || k === "r" || k === "t")) { MP.boomCoins += (+ji[id][3] || 1) * (n | 0 || 1); return; }
     return orig.apply(this, arguments);
   };
 }
